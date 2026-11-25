@@ -76,7 +76,9 @@ fn file_prelude(imports: &[String], doc: &str) -> String {
         writeln!(s, "public import {}", i).unwrap();
     }
     writeln!(s, "\n/-! {} -/\n", doc).unwrap();
-    s.push_str("set_option linter.style.longLine false\nset_option maxRecDepth 100000\n\n");
+    // `Elab.async false`: with asynchronous elaboration the memory used by the kernel for one
+    // theorem is only released at the end of the file, and leaves use a lot of it.
+    s.push_str("set_option linter.style.longLine false\nset_option maxRecDepth 100000\nset_option Elab.async false\n\n");
     s.push_str("@[expose] public section\n\n");
     s
 }
@@ -254,6 +256,57 @@ pub fn stats(s: usize, n: usize, bmax: usize, ord: usize) {
     println!("({},{}) ord {} vars {} b {}: blocks {} leaves {} of {} ({:?})", s, n, ord, p.nvars, b, blocks.len(), leaves, 1u64 << (p.nvars - b), t0.elapsed());
 }
 
+/// Emit the certificate of one class without symmetry reduction: all leaves are evaluated.
+fn emit_class_plain(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], bmax: usize) -> u128 {
+    let (s, n) = (sys.s, sys.n);
+    let p = Problem::new(sys, rep, &default_order);
+    let b = p.nvars.min(bmax);
+    let t0 = std::time::Instant::now();
+    let leaves = all_leaves(&p, b);
+    let total: u128 = leaves.iter().map(|&x| x as u128).sum();
+    println!("  class {} rep {:?}: vars {} quads {} b {} leaves {} count {} ({:?})", i, rep, p.nvars, p.quads.len(), b, leaves.len(), total, t0.elapsed());
+    let chunks: Vec<Chunk> = leaves.iter().enumerate().map(|(a, &v)| Chunk { lo: a as u64, cnt: 1, val: v as u128 }).collect();
+    let cls_module = format!("{}.C{}", ctx.module, i);
+    let cls_ns = format!("{}.C{}", ctx.namespace, i);
+    let single = chunks.len() <= FANOUT;
+    let defs_module = if single { cls_module.clone() } else { format!("{}.Defs", cls_module) };
+    let mut defs = String::new();
+    writeln!(defs, "namespace {}\n\nopen RACert RACert.Problem\n", cls_ns).unwrap();
+    defs.push_str(&problem_def(&p));
+    let mut body = String::new();
+    let imports = emit_chunks(ctx, &cls_ns, &defs_module, &cls_module, b, &chunks, &mut body, "total");
+    writeln!(
+        body,
+        "/-- The number of lawful cycle sets invariant under the symmetry of this class. -/\ntheorem count : fixCountL {} {} {} = {} :=\n  fixCountL_of_total (P := P) check rows (by decide +kernel) (by decide +kernel) total\n",
+        s,
+        n,
+        list(rep),
+        total
+    )
+    .unwrap();
+    let doc = format!("Generated certificate (see `certgen`): symmetry class {} of type ({}, {}).", i, s, n);
+    if single {
+        let mut content = file_prelude(&["Solution.Cert.Eval".to_string()], &doc);
+        content.push_str(&defs);
+        content.push_str(&body);
+        writeln!(content, "end {}", cls_ns).unwrap();
+        write_file(&ctx.path_of(&cls_module), &content);
+    } else {
+        let mut dcontent = file_prelude(&["Solution.Cert.Eval".to_string()], &doc);
+        dcontent.push_str(&defs);
+        writeln!(dcontent, "end {}", cls_ns).unwrap();
+        write_file(&ctx.path_of(&defs_module), &dcontent);
+        let mut imps = vec![defs_module.clone()];
+        imps.extend(imports);
+        let mut content = file_prelude(&imps, &doc);
+        writeln!(content, "namespace {}\n\nopen RACert RACert.Problem\n", cls_ns).unwrap();
+        content.push_str(&body);
+        writeln!(content, "end {}", cls_ns).unwrap();
+        write_file(&ctx.path_of(&cls_module), &content);
+    }
+    total
+}
+
 pub fn generate(s: usize, n: usize, root: &Path, bmax: usize) {
     let sys = Sys::new(s, n);
     let k = sys.k;
@@ -262,57 +315,22 @@ pub fn generate(s: usize, n: usize, root: &Path, bmax: usize) {
         module: format!("Solution.Atoms{}.S{}N{}", k, s, n),
         namespace: format!("RACert.S{}N{}", s, n),
     };
+    // start from a clean directory so that stale files of earlier runs do not linger
+    let dir = ctx.path_of(&ctx.module).with_extension("");
+    let _ = fs::remove_dir_all(&dir);
     let g = sys.group();
     let cl = classes(&g);
     println!("({},{}): k={} |G|={} classes={}", s, n, k, g.len(), cl.reps.len());
     let mut counts: Vec<u128> = vec![];
     for (i, rep) in cl.reps.iter().enumerate() {
-        let p = Problem::new(&sys, rep, &default_order);
-        let b = p.nvars.min(bmax);
-        let t0 = std::time::Instant::now();
-        let leaves = all_leaves(&p, b);
-        let total: u128 = leaves.iter().map(|&x| x as u128).sum();
-        println!("  class {} rep {:?}: vars {} quads {} b {} leaves {} count {} ({:?})", i, rep, p.nvars, p.quads.len(), b, leaves.len(), total, t0.elapsed());
-        counts.push(total);
-        let chunks: Vec<Chunk> = leaves.iter().enumerate().map(|(a, &v)| Chunk { lo: a as u64, cnt: 1, val: v as u128 }).collect();
-        let cls_module = format!("{}.C{}", ctx.module, i);
-        let cls_ns = format!("{}.C{}", ctx.namespace, i);
-        let single = chunks.len() <= FANOUT;
-        let defs_module = if single { cls_module.clone() } else { format!("{}.Defs", cls_module) };
-        let mut defs = String::new();
-        writeln!(defs, "namespace {}\n\nopen RACert RACert.Problem\n", cls_ns).unwrap();
-        defs.push_str(&problem_def(&p));
-        let mut body = String::new();
-        let imports = emit_chunks(&ctx, &cls_ns, &defs_module, &cls_module, b, &chunks, &mut body, "total");
-        writeln!(
-            body,
-            "/-- The number of lawful cycle sets invariant under the symmetry of this class. -/\ntheorem count : fixCountL {} {} {} = {} :=\n  fixCountL_of_total (P := P) check rows (by decide +kernel) (by decide +kernel) total\n",
-            s,
-            n,
-            list(rep),
-            total
-        )
-        .unwrap();
-        let doc = format!("Generated certificate (see `certgen`): symmetry class {} of type ({}, {}).", i, s, n);
-        if single {
-            let mut content = file_prelude(&["Solution.Cert.Eval".to_string()], &doc);
-            content.push_str(&defs);
-            content.push_str(&body);
-            writeln!(content, "end {}", cls_ns).unwrap();
-            write_file(&ctx.path_of(&cls_module), &content);
+        let nvars = Problem::new(&sys, rep, &default_order).nvars;
+        let total = if nvars <= bmax {
+            emit_class_plain(&ctx, &sys, i, rep, bmax)
         } else {
-            let mut dcontent = file_prelude(&["Solution.Cert.Eval".to_string()], &doc);
-            dcontent.push_str(&defs);
-            writeln!(dcontent, "end {}", cls_ns).unwrap();
-            write_file(&ctx.path_of(&defs_module), &dcontent);
-            let mut imps = vec![defs_module.clone()];
-            imps.extend(imports);
-            let mut content = file_prelude(&imps, &doc);
-            writeln!(content, "namespace {}\n\nopen RACert RACert.Problem\n", cls_ns).unwrap();
-            content.push_str(&body);
-            writeln!(content, "end {}", cls_ns).unwrap();
-            write_file(&ctx.path_of(&cls_module), &content);
-        }
+            let hs = centralizer(&g, rep);
+            emit_class_sym(&ctx, &sys, i, rep, &hs, bmax)
+        };
+        counts.push(total);
     }
     // Burnside
     let weighted: u128 = cl.elems.iter().map(|(_, i, _)| counts[*i]).sum();
@@ -446,4 +464,245 @@ pub fn symplan(s: usize, n: usize, bmax: usize) {
         let w: u64 = reps.iter().map(|r| r.m).sum();
         println!("  class {} vars {} |C| {} bit-group {} b {} t {}: reps {} live {} (weights ok: {}) est {:.0}s ({:?})", i, p.nvars, hs.len(), grp.perms.len(), b, grp.t, reps.len(), live, w == 1 << grp.t, estimate(&p, b, &grp, &reps), t0.elapsed());
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Symmetry-reduced certificates
+// ---------------------------------------------------------------------------------------------
+
+use crate::symm::{all_reps, centralizer, choose_low, BitGroup, Rep};
+
+/// Maximal number of live leaves and of orbit minima in one segment file.
+const SEG_LIVE: usize = 40;
+const SEG_REPS: usize = 1500;
+
+fn pairs(v: &[(Vec<usize>, Vec<usize>)]) -> String {
+    let items: Vec<String> = v.iter().map(|(p, q)| format!("({}, {})", list(p), list(q))).collect();
+    format!("[{}]", items.join(",\n   "))
+}
+
+/// A certified part of the orbit sum: `[lo, hi)` with total orbit size `m` and weighted sum `w`,
+/// proved by `name` in module `module`.
+#[derive(Clone)]
+struct Part {
+    lo: u64,
+    hi: u64,
+    m: u128,
+    w: u128,
+    name: String,
+}
+
+/// Emit segment files and (recursively) combining files. Returns the theorem proving the whole
+/// range and the imports the caller needs.
+fn emit_parts(ctx: &Ctx, cls_ns: &str, defs_module: &str, module: &str, b: usize, t: usize, parts: Vec<(Part, String)>, out: &mut String, name: &str) -> (Part, Vec<String>) {
+    // parts: (part, module providing it)
+    let _ = ctx;
+    let mut items: Vec<(Part, String)> = parts;
+    let mut level = 0;
+    while items.len() > FANOUT {
+        // group into intermediate files
+        let per = FANOUT;
+        let mut next: Vec<(Part, String)> = vec![];
+        for (j, group) in items.chunks(per).enumerate() {
+            let sub_module = format!("{}.G{}x{}", module, level, j);
+            let sub_ns = format!("G{}x{}", level, j);
+            let mut imps = vec![defs_module.to_string()];
+            imps.extend(group.iter().map(|(_, m)| m.clone()));
+            let mut content = file_prelude(&imps, "Generated certificate; see `certgen`.");
+            writeln!(content, "namespace {}\n\nopen RACert RACert.Problem\n\nnamespace {}\n", cls_ns, sub_ns).unwrap();
+            let part = combine(group, b, t, &mut content, "total");
+            writeln!(content, "end {}\n\nend {}", sub_ns, cls_ns).unwrap();
+            write_file(&ctx.path_of(&sub_module), &content);
+            next.push((Part { name: format!("{}.total", sub_ns), ..part }, sub_module));
+        }
+        items = next;
+        level += 1;
+    }
+    let part = combine(&items, b, t, out, name);
+    (part, items.into_iter().map(|(_, m)| m).collect())
+}
+
+/// Write `theorem name : OrbitSeg t perms (P.leaf b) lo hi M W` combining consecutive parts.
+fn combine(items: &[(Part, String)], b: usize, t: usize, out: &mut String, name: &str) -> Part {
+    let lo = items[0].0.lo;
+    let hi = items[items.len() - 1].0.hi;
+    let m: u128 = items.iter().map(|x| x.0.m).sum();
+    let w: u128 = items.iter().map(|x| x.0.w).sum();
+    let mut proof = items[items.len() - 1].0.name.clone();
+    for (p, _) in items[..items.len() - 1].iter().rev() {
+        proof = format!("({}).append ({})", p.name, proof);
+    }
+    writeln!(
+        out,
+        "theorem {} : OrbitSeg {} perms (P.leaf {}) {} {} {} {} :=\n  OrbitSeg.cast ({})\n    (by decide +kernel) (by decide +kernel)\n",
+        name, t, b, lo, hi, m, w, proof
+    )
+    .unwrap();
+    Part { lo, hi, m, w, name: name.to_string() }
+}
+
+/// Emit the certificate of one class using the symmetry reduction. Returns the count.
+fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize>], bmax: usize) -> u128 {
+    let (s, n) = (sys.s, sys.n);
+    let (roots, b) = choose_low(sys, rep, hs, bmax);
+    let order = move |_p: &Problem, _r: Vec<usize>| roots.clone();
+    let p = Problem::new(sys, rep, &order);
+    let grp = BitGroup::new(&p, b, hs);
+    let t = grp.t;
+    let t0 = std::time::Instant::now();
+    let reps = all_reps(&p, b, &grp);
+    let live: Vec<&Rep> = reps.iter().filter(|r| r.dead.is_none()).collect();
+    // leaves of the live minima, in parallel
+    let ev = crate::leaf::Evaluator::new(&p, b);
+    let mut vals = vec![0u64; live.len()];
+    let nthreads = std::thread::available_parallelism().map(|x| x.get()).unwrap_or(4).min(10);
+    let chunk = live.len().div_ceil(nthreads).max(1);
+    std::thread::scope(|sc| {
+        for (ci, slice) in vals.chunks_mut(chunk).enumerate() {
+            let (ev, live) = (&ev, &live);
+            sc.spawn(move || {
+                for (j, o) in slice.iter_mut().enumerate() {
+                    *o = ev.leaf(live[ci * chunk + j].alpha);
+                }
+            });
+        }
+    });
+    let mut val_of = std::collections::HashMap::new();
+    for (r, v) in live.iter().zip(&vals) {
+        val_of.insert(r.alpha, *v);
+    }
+    let total: u128 = reps.iter().map(|r| r.m as u128 * val_of.get(&r.alpha).cloned().unwrap_or(0) as u128).sum();
+    println!(
+        "  class {} rep {:?}: vars {} quads {} b {} t {} group {} minima {} live {} count {} ({:?})",
+        i, rep, p.nvars, p.quads.len(), b, t, grp.perms.len(), reps.len(), live.len(), total, t0.elapsed()
+    );
+    let cls_module = format!("{}.C{}", ctx.module, i);
+    let cls_ns = format!("{}.C{}", ctx.namespace, i);
+    let defs_module = format!("{}.Defs", cls_module);
+    // definitions
+    let doc = format!("Generated certificate (see `certgen`): symmetry class {} of type ({}, {}).", i, s, n);
+    let mut d = file_prelude(&["Solution.Cert.SymOrbit".to_string()], &doc);
+    writeln!(d, "namespace {}\n\nopen RACert RACert.Problem\n", cls_ns).unwrap();
+    d.push_str(&problem_def(&p));
+    let syms: Vec<String> = grp.syms.iter().map(|x| format!("{{ h := {}, hi := {}, vp := {}, vq := {} }}", list(&x.h), list(&x.hi), list(&x.vp), list(&x.vq))).collect();
+    writeln!(d, "/-- Symmetries of the problem, one for each element of `perms`. -/\ndef syms : List Sym :=\n  [{}]\n", syms.join(",\n   ")).unwrap();
+    writeln!(d, "/-- The group of permutations of the high variables induced by the symmetries. -/\ndef perms : List (List ℕ × List ℕ) :=\n  {}\n", pairs(&grp.perms)).unwrap();
+    let comp: Vec<String> = grp.comp.iter().map(|r| list(r)).collect();
+    writeln!(d, "/-- Multiplication table of `perms`. -/\ndef comp : List (List ℕ) :=\n  [{}]\n", comp.join(",\n   ")).unwrap();
+    writeln!(d, "/-- Inverses in `perms`. -/\ndef inv : List ℕ := {}\n", list(&grp.inv)).unwrap();
+    writeln!(d, "theorem symsOK : P.checkSyms {} syms perms = true := by decide +kernel\n", b).unwrap();
+    writeln!(d, "theorem grpOK : checkBitGroup {} perms comp inv = true := by decide +kernel\n", t).unwrap();
+    writeln!(d, "end {}", cls_ns).unwrap();
+    write_file(&ctx.path_of(&defs_module), &d);
+    // segments
+    let mut segs: Vec<Vec<&Rep>> = vec![];
+    let mut cur: Vec<&Rep> = vec![];
+    let mut cur_live = 0;
+    for r in &reps {
+        if cur.len() >= SEG_REPS || (cur_live >= SEG_LIVE && r.dead.is_none()) {
+            segs.push(std::mem::take(&mut cur));
+            cur_live = 0;
+        }
+        if r.dead.is_none() {
+            cur_live += 1;
+        }
+        cur.push(r);
+    }
+    if !cur.is_empty() {
+        segs.push(cur);
+    }
+    let top: u64 = 1 << t;
+    let mut parts: Vec<(Part, String)> = vec![];
+    for (j, seg) in segs.iter().enumerate() {
+        let lo = if j == 0 { 0 } else { seg[0].alpha };
+        let hi = if j + 1 == segs.len() { top } else { segs[j + 1][0].alpha };
+        let m: u128 = seg.iter().map(|r| r.m as u128).sum();
+        let w: u128 = seg.iter().map(|r| r.m as u128 * val_of.get(&r.alpha).cloned().unwrap_or(0) as u128).sum();
+        let seg_module = format!("{}.S{}", cls_module, j);
+        let seg_ns = format!("S{}", j);
+        let mut c = file_prelude(&[defs_module.clone()], "Generated certificate segment; see `certgen`.");
+        writeln!(c, "namespace {}\n\nopen RACert RACert.Problem\n\nnamespace {}\n", cls_ns, seg_ns).unwrap();
+        let seg_s: Vec<String> = seg.iter().map(|r| format!("({}, {})", r.alpha, r.m)).collect();
+        let ev_s: Vec<String> = seg.iter().map(|r| match r.dead { None => "0".to_string(), Some(x) => format!("{}", x + 1) }).collect();
+        let live_s: Vec<String> = seg.iter().filter(|r| r.dead.is_none()).map(|r| format!("({}, {})", r.alpha, val_of[&r.alpha])).collect();
+        writeln!(c, "/-- Orbit minima `(α, orbit size)` in this segment. -/\ndef seg : List (ℕ × ℕ) :=\n  [{}]\n", seg_s.join(", ")).unwrap();
+        writeln!(c, "/-- Evidence: `0` for a leaf evaluated below, `x + 1` for a leaf killed by the quadruple `x`. -/\ndef ev : List ℕ :=\n  [{}]\n", ev_s.join(", ")).unwrap();
+        writeln!(c, "/-- The evaluated leaves `(α, value)`. -/\ndef live : List (ℕ × ℕ) :=\n  [{}]\n", live_s.join(", ")).unwrap();
+        let mut lp = String::from(".nil");
+        for r in seg.iter().rev().filter(|r| r.dead.is_none()) {
+            lp = format!(".cons l{} ({})", r.alpha, lp);
+        }
+        for r in seg.iter().filter(|r| r.dead.is_none()) {
+            writeln!(c, "theorem l{} : P.leaf {} {} = {} := by decide +kernel\n", r.alpha, b, r.alpha, val_of[&r.alpha]).unwrap();
+        }
+        writeln!(c, "theorem segOK : checkSeg {} perms {} {} seg = true := by decide +kernel\n", t, lo, hi).unwrap();
+        writeln!(c, "theorem evOK : P.checkEv {} seg ev live 0 {} = true := by decide +kernel\n", b, w).unwrap();
+        writeln!(
+            c,
+            "theorem total : OrbitSeg {} perms (P.leaf {}) {} {} {} {} :=\n  OrbitSeg.of_check segOK (by decide +kernel)\n    (checkEv_sum check rows evOK ({}))\n",
+            t, b, lo, hi, m, w, lp
+        )
+        .unwrap();
+        writeln!(c, "end {}\n\nend {}", seg_ns, cls_ns).unwrap();
+        write_file(&ctx.path_of(&seg_module), &c);
+        parts.push((Part { lo, hi, m, w, name: format!("{}.total", seg_ns) }, seg_module));
+    }
+    let mut body = String::new();
+    let (part, imports) = emit_parts(ctx, &cls_ns, &defs_module, &cls_module, b, t, parts, &mut body, "total");
+    assert_eq!(part.m, top as u128, "orbit sizes do not add up");
+    assert_eq!(part.w, total);
+    writeln!(
+        body,
+        "/-- The number of lawful cycle sets invariant under the symmetry of this class. -/\ntheorem count : fixCountL {} {} {} = {} :=\n  fixCountL_of_orbits (P := P) check rows (by decide +kernel) (by decide +kernel) (by decide +kernel)\n    symsOK grpOK total\n",
+        s, n, list(rep), total
+    )
+    .unwrap();
+    let mut imps = vec![defs_module.clone()];
+    imps.extend(imports);
+    let mut content = file_prelude(&imps, &doc);
+    writeln!(content, "namespace {}\n\nopen RACert RACert.Problem\n", cls_ns).unwrap();
+    content.push_str(&body);
+    writeln!(content, "end {}", cls_ns).unwrap();
+    write_file(&ctx.path_of(&cls_module), &content);
+    total
+}
+
+/// Statistics on the quadruples of the identity class: how many have literally equal sides.
+pub fn quadstats(s: usize, n: usize) {
+    let sys = Sys::new(s, n);
+    let g = sys.group();
+    let cl = classes(&g);
+    let p = Problem::new(&sys, &cl.reps[0], &default_order);
+    let mut triv_rows = 0;
+    let mut triv_terms = 0;
+    let mut pairs_all = std::collections::HashSet::new();
+    let mut pairs_canon = std::collections::HashSet::new();
+    let mut nterms = 0;
+    for &x in &p.quads {
+        let (l, r) = p.quad_terms(x);
+        let norm = |v: &Vec<(usize, usize)>| {
+            let mut w: Vec<(usize, usize)> = v.iter().filter(|t| t.0 != 0 && t.1 != 0).map(|&(a, b)| (a.min(b), a.max(b))).collect();
+            w.sort();
+            w.dedup();
+            w
+        };
+        if norm(&l) == norm(&r) {
+            triv_terms += 1;
+        }
+        let k = p.k;
+        let (rr, u, t, pp) = (x / k / k / k, x / k / k % k, x / k % k, x % k);
+        let row = |a: usize, b: usize| -> Vec<usize> { (0..k).map(|q| p.cls[p.tcode(a, b, q)]).collect() };
+        let (a1, a2, b1, b2) = (row(p.conv[rr], pp), row(u, t), row(rr, u), row(pp, p.conv[t]));
+        if (a1 == b1 && a2 == b2) || (a1 == b2 && a2 == b1) {
+            triv_rows += 1;
+        }
+        for (a, b) in l.iter().chain(r.iter()) {
+            if *a >= 2 && *b >= 2 {
+                nterms += 1;
+                pairs_all.insert((*a, *b));
+                pairs_canon.insert((*a.min(b), *a.max(b)));
+            }
+        }
+    }
+    println!("({},{}): quads {} trivial(rows) {} trivial(terms) {}; variable-variable terms {} distinct ordered {} unordered {}", s, n, p.quads.len(), triv_rows, triv_terms, nterms, pairs_all.len(), pairs_canon.len());
 }

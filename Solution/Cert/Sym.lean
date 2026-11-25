@@ -333,7 +333,8 @@ noncomputable def checkSym (P : Problem) (b : ℕ) (S : Sym) (e : List ℕ × Li
 
 theorem checkSym_spec {b : ℕ} {S : Sym} {e : List ℕ × List ℕ} (h : P.checkSym b S e = true) :
     SymF P b (nth 0 S.h) (nth 0 S.hi) (nth 0 S.vp) (nth 0 S.vq) ∧
-      ∀ i < P.V - b, nth 0 e.1 i + b = nth 0 S.vp (b + i) ∧ nth 0 e.2 i + b = nth 0 S.vq (b + i) := by
+      ∀ i < P.V - b,
+        nth 0 e.1 i + b = nth 0 S.vp (b + i) ∧ nth 0 e.2 i + b = nth 0 S.vq (b + i) := by
   simp only [checkSym, Bool.and_eq_true] at h
   obtain ⟨hA, hC, hV, hT⟩ := h
   have hA' : ∀ c < P.k, _ := fun c hc => by

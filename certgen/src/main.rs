@@ -29,6 +29,10 @@ fn main() {
         lean::stats(s, n, bmax, ord);
         return;
     }
+    if args.len() >= 4 && args[1] == "quadstats" {
+        lean::quadstats(args[2].parse().unwrap(), args[3].parse().unwrap());
+        return;
+    }
     if args.len() >= 4 && args[1] == "symplan" {
         let s: usize = args[2].parse().unwrap();
         let n: usize = args[3].parse().unwrap();
