@@ -34,85 +34,7 @@ def ev : List ℕ :=
 def live : List (ℕ × ℕ) :=
   [(13255, 4), (13263, 10), (13264, 3), (13267, 4), (13271, 16), (13277, 15), (13279, 40), (13283, 6), (13287, 24), (13294, 15), (13295, 72), (13299, 18), (13303, 48), (13308, 8), (13309, 50), (13310, 24), (13311, 140), (13442, 16), (13446, 3), (13458, 18), (13506, 7), (13510, 5), (13518, 18), (13811, 27), (13815, 54), (13819, 54), (13820, 18), (13821, 90), (13822, 54), (13823, 162), (13974, 18), (14275, 4), (14279, 16), (14283, 16), (14287, 52), (14288, 12), (14291, 16), (14295, 64), (14299, 64), (14301, 90)]
 
-theorem l13255 : P.leaf 18 13255 = 4 := by decide +kernel
-
-theorem l13263 : P.leaf 18 13263 = 10 := by decide +kernel
-
-theorem l13264 : P.leaf 18 13264 = 3 := by decide +kernel
-
-theorem l13267 : P.leaf 18 13267 = 4 := by decide +kernel
-
-theorem l13271 : P.leaf 18 13271 = 16 := by decide +kernel
-
-theorem l13277 : P.leaf 18 13277 = 15 := by decide +kernel
-
-theorem l13279 : P.leaf 18 13279 = 40 := by decide +kernel
-
-theorem l13283 : P.leaf 18 13283 = 6 := by decide +kernel
-
-theorem l13287 : P.leaf 18 13287 = 24 := by decide +kernel
-
-theorem l13294 : P.leaf 18 13294 = 15 := by decide +kernel
-
-theorem l13295 : P.leaf 18 13295 = 72 := by decide +kernel
-
-theorem l13299 : P.leaf 18 13299 = 18 := by decide +kernel
-
-theorem l13303 : P.leaf 18 13303 = 48 := by decide +kernel
-
-theorem l13308 : P.leaf 18 13308 = 8 := by decide +kernel
-
-theorem l13309 : P.leaf 18 13309 = 50 := by decide +kernel
-
-theorem l13310 : P.leaf 18 13310 = 24 := by decide +kernel
-
-theorem l13311 : P.leaf 18 13311 = 140 := by decide +kernel
-
-theorem l13442 : P.leaf 18 13442 = 16 := by decide +kernel
-
-theorem l13446 : P.leaf 18 13446 = 3 := by decide +kernel
-
-theorem l13458 : P.leaf 18 13458 = 18 := by decide +kernel
-
-theorem l13506 : P.leaf 18 13506 = 7 := by decide +kernel
-
-theorem l13510 : P.leaf 18 13510 = 5 := by decide +kernel
-
-theorem l13518 : P.leaf 18 13518 = 18 := by decide +kernel
-
-theorem l13811 : P.leaf 18 13811 = 27 := by decide +kernel
-
-theorem l13815 : P.leaf 18 13815 = 54 := by decide +kernel
-
-theorem l13819 : P.leaf 18 13819 = 54 := by decide +kernel
-
-theorem l13820 : P.leaf 18 13820 = 18 := by decide +kernel
-
-theorem l13821 : P.leaf 18 13821 = 90 := by decide +kernel
-
-theorem l13822 : P.leaf 18 13822 = 54 := by decide +kernel
-
-theorem l13823 : P.leaf 18 13823 = 162 := by decide +kernel
-
-theorem l13974 : P.leaf 18 13974 = 18 := by decide +kernel
-
-theorem l14275 : P.leaf 18 14275 = 4 := by decide +kernel
-
-theorem l14279 : P.leaf 18 14279 = 16 := by decide +kernel
-
-theorem l14283 : P.leaf 18 14283 = 16 := by decide +kernel
-
-theorem l14287 : P.leaf 18 14287 = 52 := by decide +kernel
-
-theorem l14288 : P.leaf 18 14288 = 12 := by decide +kernel
-
-theorem l14291 : P.leaf 18 14291 = 16 := by decide +kernel
-
-theorem l14295 : P.leaf 18 14295 = 64 := by decide +kernel
-
-theorem l14299 : P.leaf 18 14299 = 64 := by decide +kernel
-
-theorem l14301 : P.leaf 18 14301 = 90 := by decide +kernel
+theorem leavesOK : P.checkLeaves 18 live = true := by decide +kernel
 
 theorem segOK : checkSeg 20 perms 13255 14303 seg = true := by decide +kernel
 
@@ -120,7 +42,7 @@ theorem evOK : P.checkEv 18 seg ev live 0 55416 = true := by decide +kernel
 
 theorem total : OrbitSeg 20 perms (P.leaf 18) 13255 14303 24288 55416 :=
   OrbitSeg.of_check segOK (by decide +kernel)
-    (checkEv_sum check rows evOK (.cons l13255 (.cons l13263 (.cons l13264 (.cons l13267 (.cons l13271 (.cons l13277 (.cons l13279 (.cons l13283 (.cons l13287 (.cons l13294 (.cons l13295 (.cons l13299 (.cons l13303 (.cons l13308 (.cons l13309 (.cons l13310 (.cons l13311 (.cons l13442 (.cons l13446 (.cons l13458 (.cons l13506 (.cons l13510 (.cons l13518 (.cons l13811 (.cons l13815 (.cons l13819 (.cons l13820 (.cons l13821 (.cons l13822 (.cons l13823 (.cons l13974 (.cons l14275 (.cons l14279 (.cons l14283 (.cons l14287 (.cons l14288 (.cons l14291 (.cons l14295 (.cons l14299 (.cons l14301 (.nil))))))))))))))))))))))))))))))))))))))))))
+    (checkEv_sum check rows evOK (checkLeaves_spec rows leavesOK))
 
 end S3
 

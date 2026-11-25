@@ -34,85 +34,7 @@ def ev : List ℕ :=
 def live : List (ℕ × ℕ) :=
   [(5099, 16), (5102, 9), (5103, 40), (5111, 40), (5115, 48), (5116, 4), (5117, 24), (5118, 16), (5119, 124), (5623, 36), (5627, 54), (5629, 54), (5630, 36), (5631, 144), (5737, 0), (5782, 8), (6103, 64), (6107, 64), (6111, 184), (6123, 64), (6127, 184), (6135, 160), (6141, 140), (6142, 92), (6143, 624), (7127, 64), (7135, 160), (7166, 60), (7167, 496), (8191, 2368), (12290, 12), (12306, 12), (12323, 2), (12339, 10), (12482, 3), (12486, 2), (12494, 9), (12624, 0), (12632, 0), (13251, 1)]
 
-theorem l5099 : P.leaf 18 5099 = 16 := by decide +kernel
-
-theorem l5102 : P.leaf 18 5102 = 9 := by decide +kernel
-
-theorem l5103 : P.leaf 18 5103 = 40 := by decide +kernel
-
-theorem l5111 : P.leaf 18 5111 = 40 := by decide +kernel
-
-theorem l5115 : P.leaf 18 5115 = 48 := by decide +kernel
-
-theorem l5116 : P.leaf 18 5116 = 4 := by decide +kernel
-
-theorem l5117 : P.leaf 18 5117 = 24 := by decide +kernel
-
-theorem l5118 : P.leaf 18 5118 = 16 := by decide +kernel
-
-theorem l5119 : P.leaf 18 5119 = 124 := by decide +kernel
-
-theorem l5623 : P.leaf 18 5623 = 36 := by decide +kernel
-
-theorem l5627 : P.leaf 18 5627 = 54 := by decide +kernel
-
-theorem l5629 : P.leaf 18 5629 = 54 := by decide +kernel
-
-theorem l5630 : P.leaf 18 5630 = 36 := by decide +kernel
-
-theorem l5631 : P.leaf 18 5631 = 144 := by decide +kernel
-
-theorem l5737 : P.leaf 18 5737 = 0 := by decide +kernel
-
-theorem l5782 : P.leaf 18 5782 = 8 := by decide +kernel
-
-theorem l6103 : P.leaf 18 6103 = 64 := by decide +kernel
-
-theorem l6107 : P.leaf 18 6107 = 64 := by decide +kernel
-
-theorem l6111 : P.leaf 18 6111 = 184 := by decide +kernel
-
-theorem l6123 : P.leaf 18 6123 = 64 := by decide +kernel
-
-theorem l6127 : P.leaf 18 6127 = 184 := by decide +kernel
-
-theorem l6135 : P.leaf 18 6135 = 160 := by decide +kernel
-
-theorem l6141 : P.leaf 18 6141 = 140 := by decide +kernel
-
-theorem l6142 : P.leaf 18 6142 = 92 := by decide +kernel
-
-theorem l6143 : P.leaf 18 6143 = 624 := by decide +kernel
-
-theorem l7127 : P.leaf 18 7127 = 64 := by decide +kernel
-
-theorem l7135 : P.leaf 18 7135 = 160 := by decide +kernel
-
-theorem l7166 : P.leaf 18 7166 = 60 := by decide +kernel
-
-theorem l7167 : P.leaf 18 7167 = 496 := by decide +kernel
-
-theorem l8191 : P.leaf 18 8191 = 2368 := by decide +kernel
-
-theorem l12290 : P.leaf 18 12290 = 12 := by decide +kernel
-
-theorem l12306 : P.leaf 18 12306 = 12 := by decide +kernel
-
-theorem l12323 : P.leaf 18 12323 = 2 := by decide +kernel
-
-theorem l12339 : P.leaf 18 12339 = 10 := by decide +kernel
-
-theorem l12482 : P.leaf 18 12482 = 3 := by decide +kernel
-
-theorem l12486 : P.leaf 18 12486 = 2 := by decide +kernel
-
-theorem l12494 : P.leaf 18 12494 = 9 := by decide +kernel
-
-theorem l12624 : P.leaf 18 12624 = 0 := by decide +kernel
-
-theorem l12632 : P.leaf 18 12632 = 0 := by decide +kernel
-
-theorem l13251 : P.leaf 18 13251 = 1 := by decide +kernel
+theorem leavesOK : P.checkLeaves 18 live = true := by decide +kernel
 
 theorem segOK : checkSeg 20 perms 5099 13255 seg = true := by decide +kernel
 
@@ -120,7 +42,7 @@ theorem evOK : P.checkEv 18 seg ev live 0 155200 = true := by decide +kernel
 
 theorem total : OrbitSeg 20 perms (P.leaf 18) 5099 13255 26688 155200 :=
   OrbitSeg.of_check segOK (by decide +kernel)
-    (checkEv_sum check rows evOK (.cons l5099 (.cons l5102 (.cons l5103 (.cons l5111 (.cons l5115 (.cons l5116 (.cons l5117 (.cons l5118 (.cons l5119 (.cons l5623 (.cons l5627 (.cons l5629 (.cons l5630 (.cons l5631 (.cons l5737 (.cons l5782 (.cons l6103 (.cons l6107 (.cons l6111 (.cons l6123 (.cons l6127 (.cons l6135 (.cons l6141 (.cons l6142 (.cons l6143 (.cons l7127 (.cons l7135 (.cons l7166 (.cons l7167 (.cons l8191 (.cons l12290 (.cons l12306 (.cons l12323 (.cons l12339 (.cons l12482 (.cons l12486 (.cons l12494 (.cons l12624 (.cons l12632 (.cons l13251 (.nil))))))))))))))))))))))))))))))))))))))))))
+    (checkEv_sum check rows evOK (checkLeaves_spec rows leavesOK))
 
 end S2
 

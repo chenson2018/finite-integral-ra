@@ -34,85 +34,7 @@ def ev : List ℕ :=
 def live : List (ℕ × ℕ) :=
   [(112587, 72), (112591, 388), (112594, 47), (112595, 106), (112597, 394), (112599, 798), (112603, 324), (112605, 707), (112607, 1372), (112610, 96), (112611, 120), (112614, 486), (112615, 910), (112618, 180), (112619, 360), (112622, 822), (112623, 1652), (112626, 196), (112627, 228), (112628, 84), (112629, 932), (112630, 864), (112631, 1744), (112632, 0), (112634, 300), (112635, 624), (112636, 308), (112637, 1454), (112638, 1266), (112639, 2720), (112722, 32), (112730, 52), (112986, 80), (113346, 0), (113347, 4), (113350, 0), (113351, 24), (113355, 16), (113359, 48), (113361, 0)]
 
-theorem l112587 : P.leaf 18 112587 = 72 := by decide +kernel
-
-theorem l112591 : P.leaf 18 112591 = 388 := by decide +kernel
-
-theorem l112594 : P.leaf 18 112594 = 47 := by decide +kernel
-
-theorem l112595 : P.leaf 18 112595 = 106 := by decide +kernel
-
-theorem l112597 : P.leaf 18 112597 = 394 := by decide +kernel
-
-theorem l112599 : P.leaf 18 112599 = 798 := by decide +kernel
-
-theorem l112603 : P.leaf 18 112603 = 324 := by decide +kernel
-
-theorem l112605 : P.leaf 18 112605 = 707 := by decide +kernel
-
-theorem l112607 : P.leaf 18 112607 = 1372 := by decide +kernel
-
-theorem l112610 : P.leaf 18 112610 = 96 := by decide +kernel
-
-theorem l112611 : P.leaf 18 112611 = 120 := by decide +kernel
-
-theorem l112614 : P.leaf 18 112614 = 486 := by decide +kernel
-
-theorem l112615 : P.leaf 18 112615 = 910 := by decide +kernel
-
-theorem l112618 : P.leaf 18 112618 = 180 := by decide +kernel
-
-theorem l112619 : P.leaf 18 112619 = 360 := by decide +kernel
-
-theorem l112622 : P.leaf 18 112622 = 822 := by decide +kernel
-
-theorem l112623 : P.leaf 18 112623 = 1652 := by decide +kernel
-
-theorem l112626 : P.leaf 18 112626 = 196 := by decide +kernel
-
-theorem l112627 : P.leaf 18 112627 = 228 := by decide +kernel
-
-theorem l112628 : P.leaf 18 112628 = 84 := by decide +kernel
-
-theorem l112629 : P.leaf 18 112629 = 932 := by decide +kernel
-
-theorem l112630 : P.leaf 18 112630 = 864 := by decide +kernel
-
-theorem l112631 : P.leaf 18 112631 = 1744 := by decide +kernel
-
-theorem l112632 : P.leaf 18 112632 = 0 := by decide +kernel
-
-theorem l112634 : P.leaf 18 112634 = 300 := by decide +kernel
-
-theorem l112635 : P.leaf 18 112635 = 624 := by decide +kernel
-
-theorem l112636 : P.leaf 18 112636 = 308 := by decide +kernel
-
-theorem l112637 : P.leaf 18 112637 = 1454 := by decide +kernel
-
-theorem l112638 : P.leaf 18 112638 = 1266 := by decide +kernel
-
-theorem l112639 : P.leaf 18 112639 = 2720 := by decide +kernel
-
-theorem l112722 : P.leaf 18 112722 = 32 := by decide +kernel
-
-theorem l112730 : P.leaf 18 112730 = 52 := by decide +kernel
-
-theorem l112986 : P.leaf 18 112986 = 80 := by decide +kernel
-
-theorem l113346 : P.leaf 18 113346 = 0 := by decide +kernel
-
-theorem l113347 : P.leaf 18 113347 = 4 := by decide +kernel
-
-theorem l113350 : P.leaf 18 113350 = 0 := by decide +kernel
-
-theorem l113351 : P.leaf 18 113351 = 24 := by decide +kernel
-
-theorem l113355 : P.leaf 18 113355 = 16 := by decide +kernel
-
-theorem l113359 : P.leaf 18 113359 = 48 := by decide +kernel
-
-theorem l113361 : P.leaf 18 113361 = 0 := by decide +kernel
+theorem leavesOK : P.checkLeaves 18 live = true := by decide +kernel
 
 theorem segOK : checkSeg 20 perms 112587 113362 seg = true := by decide +kernel
 
@@ -120,7 +42,7 @@ theorem evOK : P.checkEv 18 seg ev live 0 948192 = true := by decide +kernel
 
 theorem total : OrbitSeg 20 perms (P.leaf 18) 112587 113362 15312 948192 :=
   OrbitSeg.of_check segOK (by decide +kernel)
-    (checkEv_sum check rows evOK (.cons l112587 (.cons l112591 (.cons l112594 (.cons l112595 (.cons l112597 (.cons l112599 (.cons l112603 (.cons l112605 (.cons l112607 (.cons l112610 (.cons l112611 (.cons l112614 (.cons l112615 (.cons l112618 (.cons l112619 (.cons l112622 (.cons l112623 (.cons l112626 (.cons l112627 (.cons l112628 (.cons l112629 (.cons l112630 (.cons l112631 (.cons l112632 (.cons l112634 (.cons l112635 (.cons l112636 (.cons l112637 (.cons l112638 (.cons l112639 (.cons l112722 (.cons l112730 (.cons l112986 (.cons l113346 (.cons l113347 (.cons l113350 (.cons l113351 (.cons l113355 (.cons l113359 (.cons l113361 (.nil))))))))))))))))))))))))))))))))))))))))))
+    (checkEv_sum check rows evOK (checkLeaves_spec rows leavesOK))
 
 end S40
 

@@ -610,17 +610,17 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
     let defs_module = format!("{}.Defs", cls_module);
     // definitions
     let doc = format!("Generated certificate (see `certgen`): symmetry class {} of type ({}, {}).", i, s, n);
-    let mut d = file_prelude(&["Solution.Cert.SymOrbit".to_string()], &doc);
+    let mut d = file_prelude(&["Solution.Cert.SymOrbit".to_string(), "Solution.Cert.Fast".to_string()], &doc);
     writeln!(d, "namespace {}\n\nopen RACert RACert.Problem\n", cls_ns).unwrap();
     d.push_str(&problem_def(&p));
     let syms: Vec<String> = grp.syms.iter().map(|x| format!("{{ h := {}, hi := {}, vp := {}, vq := {} }}", list(&x.h), list(&x.hi), list(&x.vp), list(&x.vq))).collect();
     writeln!(d, "/-- Symmetries of the problem, one for each element of `perms`. -/\ndef syms : List Sym :=\n  [{}]\n", syms.join(",\n   ")).unwrap();
     writeln!(d, "/-- The group of permutations of the high variables induced by the symmetries. -/\ndef perms : List (List ℕ × List ℕ) :=\n  {}\n", pairs(&grp.perms)).unwrap();
-    let comp: Vec<String> = grp.comp.iter().map(|r| list(r)).collect();
-    writeln!(d, "/-- Multiplication table of `perms`. -/\ndef comp : List (List ℕ) :=\n  [{}]\n", comp.join(",\n   ")).unwrap();
+    let gens: Vec<String> = grp.gens().iter().map(|(g, r)| format!("({}, {})", g, list(r))).collect();
+    writeln!(d, "/-- Generators of `perms` with their rows of the multiplication table. -/\ndef gens : List (ℕ × List ℕ) :=\n  [{}]\n", gens.join(",\n   ")).unwrap();
     writeln!(d, "/-- Inverses in `perms`. -/\ndef inv : List ℕ := {}\n", list(&grp.inv)).unwrap();
     writeln!(d, "theorem symsOK : P.checkSyms {} syms perms = true := by decide +kernel\n", b).unwrap();
-    writeln!(d, "theorem grpOK : checkBitGroup {} perms comp inv = true := by decide +kernel\n", t).unwrap();
+    writeln!(d, "theorem grpOK : checkBitGroup {} perms gens inv = true := by decide +kernel\n", t).unwrap();
     writeln!(d, "end {}", cls_ns).unwrap();
     write_file(&ctx.path_of(&defs_module), &d);
     // segments
@@ -657,13 +657,8 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
         writeln!(c, "/-- Orbit minima `(α, orbit size)` in this segment. -/\ndef seg : List (ℕ × ℕ) :=\n  [{}]\n", seg_s.join(", ")).unwrap();
         writeln!(c, "/-- Evidence: `0` for a leaf evaluated below, `x + 1` for a leaf killed by the quadruple `x`. -/\ndef ev : List ℕ :=\n  [{}]\n", ev_s.join(", ")).unwrap();
         writeln!(c, "/-- The evaluated leaves `(α, value)`. -/\ndef live : List (ℕ × ℕ) :=\n  [{}]\n", live_s.join(", ")).unwrap();
-        let mut lp = String::from(".nil");
-        for r in seg.iter().rev().filter(|r| r.dead.is_none()) {
-            lp = format!(".cons l{} ({})", r.alpha, lp);
-        }
-        for r in seg.iter().filter(|r| r.dead.is_none()) {
-            writeln!(c, "theorem l{} : P.leaf {} {} = {} := by decide +kernel\n", r.alpha, b, r.alpha, val_of[&r.alpha]).unwrap();
-        }
+        writeln!(c, "theorem leavesOK : P.checkLeaves {} live = true := by decide +kernel\n", b).unwrap();
+        let lp = String::from("checkLeaves_spec rows leavesOK");
         writeln!(c, "theorem segOK : checkSeg {} perms {} {} seg = true := by decide +kernel\n", t, lo, hi).unwrap();
         writeln!(c, "theorem evOK : P.checkEv {} seg ev live 0 {} = true := by decide +kernel\n", b, w).unwrap();
         writeln!(

@@ -34,85 +34,7 @@ def ev : List ℕ :=
 def live : List (ℕ × ℕ) :=
   [(92151, 556), (92157, 332), (92158, 672), (92159, 968), (92575, 112), (92606, 137), (92607, 462), (92662, 214), (92663, 542), (92671, 1856), (93087, 688), (93119, 1232), (93143, 576), (93151, 1108), (93182, 1204), (93183, 1820), (94207, 2752), (94485, 2), (94487, 6), (94503, 10), (94519, 49), (94549, 4), (94557, 20), (94581, 20), (94588, 9), (94589, 80), (94603, 8), (94607, 8), (94613, 3), (94619, 16), (94623, 16), (94634, 8), (94635, 36), (94638, 20), (94639, 36), (94645, 20), (94650, 12), (94651, 92), (94654, 33), (94655, 92)]
 
-theorem l92151 : P.leaf 18 92151 = 556 := by decide +kernel
-
-theorem l92157 : P.leaf 18 92157 = 332 := by decide +kernel
-
-theorem l92158 : P.leaf 18 92158 = 672 := by decide +kernel
-
-theorem l92159 : P.leaf 18 92159 = 968 := by decide +kernel
-
-theorem l92575 : P.leaf 18 92575 = 112 := by decide +kernel
-
-theorem l92606 : P.leaf 18 92606 = 137 := by decide +kernel
-
-theorem l92607 : P.leaf 18 92607 = 462 := by decide +kernel
-
-theorem l92662 : P.leaf 18 92662 = 214 := by decide +kernel
-
-theorem l92663 : P.leaf 18 92663 = 542 := by decide +kernel
-
-theorem l92671 : P.leaf 18 92671 = 1856 := by decide +kernel
-
-theorem l93087 : P.leaf 18 93087 = 688 := by decide +kernel
-
-theorem l93119 : P.leaf 18 93119 = 1232 := by decide +kernel
-
-theorem l93143 : P.leaf 18 93143 = 576 := by decide +kernel
-
-theorem l93151 : P.leaf 18 93151 = 1108 := by decide +kernel
-
-theorem l93182 : P.leaf 18 93182 = 1204 := by decide +kernel
-
-theorem l93183 : P.leaf 18 93183 = 1820 := by decide +kernel
-
-theorem l94207 : P.leaf 18 94207 = 2752 := by decide +kernel
-
-theorem l94485 : P.leaf 18 94485 = 2 := by decide +kernel
-
-theorem l94487 : P.leaf 18 94487 = 6 := by decide +kernel
-
-theorem l94503 : P.leaf 18 94503 = 10 := by decide +kernel
-
-theorem l94519 : P.leaf 18 94519 = 49 := by decide +kernel
-
-theorem l94549 : P.leaf 18 94549 = 4 := by decide +kernel
-
-theorem l94557 : P.leaf 18 94557 = 20 := by decide +kernel
-
-theorem l94581 : P.leaf 18 94581 = 20 := by decide +kernel
-
-theorem l94588 : P.leaf 18 94588 = 9 := by decide +kernel
-
-theorem l94589 : P.leaf 18 94589 = 80 := by decide +kernel
-
-theorem l94603 : P.leaf 18 94603 = 8 := by decide +kernel
-
-theorem l94607 : P.leaf 18 94607 = 8 := by decide +kernel
-
-theorem l94613 : P.leaf 18 94613 = 3 := by decide +kernel
-
-theorem l94619 : P.leaf 18 94619 = 16 := by decide +kernel
-
-theorem l94623 : P.leaf 18 94623 = 16 := by decide +kernel
-
-theorem l94634 : P.leaf 18 94634 = 8 := by decide +kernel
-
-theorem l94635 : P.leaf 18 94635 = 36 := by decide +kernel
-
-theorem l94638 : P.leaf 18 94638 = 20 := by decide +kernel
-
-theorem l94639 : P.leaf 18 94639 = 36 := by decide +kernel
-
-theorem l94645 : P.leaf 18 94645 = 20 := by decide +kernel
-
-theorem l94650 : P.leaf 18 94650 = 12 := by decide +kernel
-
-theorem l94651 : P.leaf 18 94651 = 92 := by decide +kernel
-
-theorem l94654 : P.leaf 18 94654 = 33 := by decide +kernel
-
-theorem l94655 : P.leaf 18 94655 = 92 := by decide +kernel
+theorem leavesOK : P.checkLeaves 18 live = true := by decide +kernel
 
 theorem segOK : checkSeg 20 perms 92151 94659 seg = true := by decide +kernel
 
@@ -120,7 +42,7 @@ theorem evOK : P.checkEv 18 seg ev live 0 511400 = true := by decide +kernel
 
 theorem total : OrbitSeg 20 perms (P.leaf 18) 92151 94659 13400 511400 :=
   OrbitSeg.of_check segOK (by decide +kernel)
-    (checkEv_sum check rows evOK (.cons l92151 (.cons l92157 (.cons l92158 (.cons l92159 (.cons l92575 (.cons l92606 (.cons l92607 (.cons l92662 (.cons l92663 (.cons l92671 (.cons l93087 (.cons l93119 (.cons l93143 (.cons l93151 (.cons l93182 (.cons l93183 (.cons l94207 (.cons l94485 (.cons l94487 (.cons l94503 (.cons l94519 (.cons l94549 (.cons l94557 (.cons l94581 (.cons l94588 (.cons l94589 (.cons l94603 (.cons l94607 (.cons l94613 (.cons l94619 (.cons l94623 (.cons l94634 (.cons l94635 (.cons l94638 (.cons l94639 (.cons l94645 (.cons l94650 (.cons l94651 (.cons l94654 (.cons l94655 (.nil))))))))))))))))))))))))))))))))))))))))))
+    (checkEv_sum check rows evOK (checkLeaves_spec rows leavesOK))
 
 end S21
 

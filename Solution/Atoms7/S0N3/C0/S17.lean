@@ -34,85 +34,7 @@ def ev : List ℕ :=
 def live : List (ℕ × ℕ) :=
   [(90492, 6), (90493, 21), (90501, 0), (90507, 4), (90511, 8), (90517, 3), (90523, 8), (90527, 16), (90533, 0), (90538, 2), (90539, 8), (90542, 12), (90543, 16), (90549, 13), (90554, 6), (90555, 42), (90558, 33), (90559, 84), (90563, 1), (90567, 4), (90571, 4), (90575, 22), (90579, 4), (90581, 5), (90583, 23), (90587, 12), (90589, 24), (90591, 36), (90594, 2), (90595, 2), (90598, 8), (90599, 14), (90602, 2), (90603, 8), (90606, 32), (90607, 44), (90610, 6), (90611, 20), (90613, 15), (90614, 59)]
 
-theorem l90492 : P.leaf 18 90492 = 6 := by decide +kernel
-
-theorem l90493 : P.leaf 18 90493 = 21 := by decide +kernel
-
-theorem l90501 : P.leaf 18 90501 = 0 := by decide +kernel
-
-theorem l90507 : P.leaf 18 90507 = 4 := by decide +kernel
-
-theorem l90511 : P.leaf 18 90511 = 8 := by decide +kernel
-
-theorem l90517 : P.leaf 18 90517 = 3 := by decide +kernel
-
-theorem l90523 : P.leaf 18 90523 = 8 := by decide +kernel
-
-theorem l90527 : P.leaf 18 90527 = 16 := by decide +kernel
-
-theorem l90533 : P.leaf 18 90533 = 0 := by decide +kernel
-
-theorem l90538 : P.leaf 18 90538 = 2 := by decide +kernel
-
-theorem l90539 : P.leaf 18 90539 = 8 := by decide +kernel
-
-theorem l90542 : P.leaf 18 90542 = 12 := by decide +kernel
-
-theorem l90543 : P.leaf 18 90543 = 16 := by decide +kernel
-
-theorem l90549 : P.leaf 18 90549 = 13 := by decide +kernel
-
-theorem l90554 : P.leaf 18 90554 = 6 := by decide +kernel
-
-theorem l90555 : P.leaf 18 90555 = 42 := by decide +kernel
-
-theorem l90558 : P.leaf 18 90558 = 33 := by decide +kernel
-
-theorem l90559 : P.leaf 18 90559 = 84 := by decide +kernel
-
-theorem l90563 : P.leaf 18 90563 = 1 := by decide +kernel
-
-theorem l90567 : P.leaf 18 90567 = 4 := by decide +kernel
-
-theorem l90571 : P.leaf 18 90571 = 4 := by decide +kernel
-
-theorem l90575 : P.leaf 18 90575 = 22 := by decide +kernel
-
-theorem l90579 : P.leaf 18 90579 = 4 := by decide +kernel
-
-theorem l90581 : P.leaf 18 90581 = 5 := by decide +kernel
-
-theorem l90583 : P.leaf 18 90583 = 23 := by decide +kernel
-
-theorem l90587 : P.leaf 18 90587 = 12 := by decide +kernel
-
-theorem l90589 : P.leaf 18 90589 = 24 := by decide +kernel
-
-theorem l90591 : P.leaf 18 90591 = 36 := by decide +kernel
-
-theorem l90594 : P.leaf 18 90594 = 2 := by decide +kernel
-
-theorem l90595 : P.leaf 18 90595 = 2 := by decide +kernel
-
-theorem l90598 : P.leaf 18 90598 = 8 := by decide +kernel
-
-theorem l90599 : P.leaf 18 90599 = 14 := by decide +kernel
-
-theorem l90602 : P.leaf 18 90602 = 2 := by decide +kernel
-
-theorem l90603 : P.leaf 18 90603 = 8 := by decide +kernel
-
-theorem l90606 : P.leaf 18 90606 = 32 := by decide +kernel
-
-theorem l90607 : P.leaf 18 90607 = 44 := by decide +kernel
-
-theorem l90610 : P.leaf 18 90610 = 6 := by decide +kernel
-
-theorem l90611 : P.leaf 18 90611 = 20 := by decide +kernel
-
-theorem l90613 : P.leaf 18 90613 = 15 := by decide +kernel
-
-theorem l90614 : P.leaf 18 90614 = 59 := by decide +kernel
+theorem leavesOK : P.checkLeaves 18 live = true := by decide +kernel
 
 theorem segOK : checkSeg 20 perms 90492 90615 seg = true := by decide +kernel
 
@@ -120,7 +42,7 @@ theorem evOK : P.checkEv 18 seg ev live 0 30192 = true := by decide +kernel
 
 theorem total : OrbitSeg 20 perms (P.leaf 18) 90492 90615 4576 30192 :=
   OrbitSeg.of_check segOK (by decide +kernel)
-    (checkEv_sum check rows evOK (.cons l90492 (.cons l90493 (.cons l90501 (.cons l90507 (.cons l90511 (.cons l90517 (.cons l90523 (.cons l90527 (.cons l90533 (.cons l90538 (.cons l90539 (.cons l90542 (.cons l90543 (.cons l90549 (.cons l90554 (.cons l90555 (.cons l90558 (.cons l90559 (.cons l90563 (.cons l90567 (.cons l90571 (.cons l90575 (.cons l90579 (.cons l90581 (.cons l90583 (.cons l90587 (.cons l90589 (.cons l90591 (.cons l90594 (.cons l90595 (.cons l90598 (.cons l90599 (.cons l90602 (.cons l90603 (.cons l90606 (.cons l90607 (.cons l90610 (.cons l90611 (.cons l90613 (.cons l90614 (.nil))))))))))))))))))))))))))))))))))))))))))
+    (checkEv_sum check rows evOK (checkLeaves_spec rows leavesOK))
 
 end S17
 

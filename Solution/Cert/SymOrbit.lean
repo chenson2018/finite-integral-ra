@@ -67,8 +67,8 @@ sum of the leaves over the orbit minima of the assignments of the high variables
 theorem fixCountL_of_orbits (hcheck : P.check = true) (hrows : P.checkRows = true) {b t hi : ℕ}
     (hb : Nat.ble b P.V = true) (ht : Nat.beq t (P.V - b) = true)
     (hhi : Nat.beq hi (2 ^ t) = true) {syms : List Sym} {perms : List (List ℕ × List ℕ)}
-    {comp : List (List ℕ)} {inv : List ℕ} (hsyms : P.checkSyms b syms perms = true)
-    (hgrp : checkBitGroup t perms comp inv = true) {W : ℕ}
+    {gens : List (ℕ × List ℕ)} {inv : List ℕ} (hsyms : P.checkSyms b syms perms = true)
+    (hgrp : checkBitGroup t perms gens inv = true) {W : ℕ}
     (hseg : OrbitSeg t perms (P.leaf b) 0 hi hi W) : fixCountL P.s P.n P.perm = W := by
   have hb' := Nat.le_of_ble_eq_true hb
   obtain rfl := Nat.eq_of_beq_eq_true ht

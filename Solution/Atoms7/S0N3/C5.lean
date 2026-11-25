@@ -10,9 +10,6 @@ public import Solution.Atoms7.S0N3.C5.Defs
 public import Solution.Atoms7.S0N3.C5.S0
 public import Solution.Atoms7.S0N3.C5.S1
 public import Solution.Atoms7.S0N3.C5.S2
-public import Solution.Atoms7.S0N3.C5.S3
-public import Solution.Atoms7.S0N3.C5.S4
-public import Solution.Atoms7.S0N3.C5.S5
 
 /-! Generated certificate (see `certgen`): symmetry class 5 of type (0, 3). -/
 
@@ -26,8 +23,8 @@ namespace RACert.S0N3.C5
 
 open RACert RACert.Problem
 
-theorem total : OrbitSeg 12 perms (P.leaf 16) 0 4096 4096 4287373 :=
-  OrbitSeg.cast ((S0.total).append ((S1.total).append ((S2.total).append ((S3.total).append ((S4.total).append (S5.total))))))
+theorem total : OrbitSeg 10 perms (P.leaf 18) 0 1024 1024 4287373 :=
+  OrbitSeg.cast ((S0.total).append ((S1.total).append (S2.total)))
     (by decide +kernel) (by decide +kernel)
 
 /-- The number of lawful cycle sets invariant under the symmetry of this class. -/

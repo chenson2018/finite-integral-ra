@@ -63,6 +63,30 @@ pub struct BitGroup {
 }
 
 impl BitGroup {
+    /// Generators `g` (as indices) with their rows of the multiplication table, such that every
+    /// index `i != 0` is `row[j]` for some generator row and some `j < i`.
+    pub fn gens(&self) -> Vec<(usize, Vec<usize>)> {
+        let n = self.perms.len();
+        let mut covered = vec![false; n];
+        covered[0] = true;
+        let mut out = vec![];
+        for i in 1..n {
+            if covered[i] {
+                continue;
+            }
+            // take i itself as a generator: i = i * identity with 0 < i
+            let row = self.comp[i].clone();
+            for (j, &c) in row.iter().enumerate() {
+                if j < c {
+                    covered[c] = true;
+                }
+            }
+            out.push((i, row));
+        }
+        assert!(covered.iter().all(|&x| x));
+        out
+    }
+
     pub fn new(p: &Problem, b: usize, hs: &[Vec<usize>]) -> BitGroup {
         let t = p.nvars - b;
         let mut items: Vec<(Vec<usize>, Sym)> = vec![];

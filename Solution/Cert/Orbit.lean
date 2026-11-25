@@ -14,8 +14,9 @@ public import Solution.Cert.Bits
 
 Fix `t`. A *bit permutation* is given by two lists `(p, q)` describing inverse permutations of
 `[0, t)`; it acts on the numbers below `2 ^ t` by moving bit `i` to position `p[i]`
-(`RACert.actBits`). For a finite group of bit permutations, given as a list `perms` with a
-multiplication table and a list of inverses (`RACert.checkBitGroup`), and a function `F` that is
+(`RACert.actBits`). For a finite group of bit permutations, given as a list `perms` with the
+rows of the multiplication table of a set of generators and a list of inverses
+(`RACert.checkBitGroup`), and a function `F` that is
 invariant under the group, the sum of `F` over `[0, 2 ^ t)` is the sum of `F` over the minima of
 the orbits, weighted by the orbit sizes.
 
@@ -343,34 +344,112 @@ theorem allZip_spec {α β : Type} (d' : α) (d : β) {f : α → β → Bool} :
       have h1 := allZip_spec d' d h.2 j (Nat.lt_of_succ_lt_succ hj)
       cases r <;> exact h1
 
-/-- `a[x] = b[c[x]]` for all `x < t`. -/
-noncomputable def eqComp (t : ℕ) (a b c : List ℕ) : Bool :=
-  allRange t fun x => Nat.beq (nth 0 a x) (nth 0 b (nth 0 c x))
+/-- `a[x] = b[c[x]]` for all `x < n`, walking along `a` and `c`. -/
+noncomputable def eqComp (b : List ℕ) : ℕ → List ℕ → List ℕ → Bool
+  | 0, _, _ => true
+  | n + 1, a, c => Nat.beq (a.headD 0) (nth 0 b (c.headD 0)) && eqComp b n a.tail c.tail
+
+theorem eqComp_spec {b : List ℕ} : ∀ {n : ℕ} {a c : List ℕ}, eqComp b n a c = true →
+    ∀ x < n, nth 0 a x = nth 0 b (nth 0 c x)
+  | 0, _, _, _, x, hx => absurd hx (Nat.not_lt_zero x)
+  | n + 1, a, c, h, x, hx => by
+    rw [eqComp, Bool.and_eq_true, Nat.beq_eq] at h
+    cases x with
+    | zero =>
+      have h1 := h.1
+      cases a <;> cases c <;> exact h1
+    | succ x =>
+      have h1 := eqComp_spec h.2 x (Nat.lt_of_succ_lt_succ hx)
+      rw [nth_tail, nth_tail] at h1
+      exact h1
 
 /-- `a[x] = b[x]` for all `x < t`. -/
 noncomputable def eqOn (t : ℕ) (a b : List ℕ) : Bool :=
   allRange t fun x => Nat.beq (nth 0 a x) (nth 0 b x)
 
-/-- Group certificate. `perms` is a list of pairs `(p, q)` such that
+/-- `l` cut into `n` consecutive blocks of length `b`, for faster access to its entries. -/
+def blocks {α : Type} (b : ℕ) : ℕ → List α → List (List α)
+  | 0, _ => []
+  | n + 1, l => l.take b :: blocks b n (l.drop b)
 
-* every pair consists of inverse permutations of `[0, t)` (`checkBitPerm`);
+theorem nth_blocks {α : Type} (d : α) {b : ℕ} : ∀ (n : ℕ) (l : List α) (i j : ℕ), i < n → j < b →
+    nth d (nth [] (blocks b n l) i) j = nth d l (i * b + j)
+  | 0, _, i, _, hi, _ => absurd hi (Nat.not_lt_zero i)
+  | n + 1, l, 0, j, _, hj => by
+    rw [blocks, nth_cons_zero, nth_eq_getD, nth_eq_getD, List.getD_eq_getElem?_getD,
+      List.getD_eq_getElem?_getD, List.getElem?_take, ite_eq_left hj, Nat.zero_mul, Nat.zero_add]
+  | n + 1, l, i + 1, j, hi, hj => by
+    rw [blocks, nth_cons_succ, nth_blocks d n _ i j (Nat.lt_of_succ_lt_succ hi) hj, nth_eq_getD,
+      nth_eq_getD, List.getD_eq_getElem?_getD, List.getD_eq_getElem?_getD, List.getElem?_drop,
+      Nat.succ_mul, Nat.add_comm (i * b) b, Nat.add_assoc]
+
+/-- The block length used by `checkBitGroup`. -/
+def blockLen : ℕ := 32
+
+/-- The forward list of the `c`-th permutation, from the list cut into blocks. -/
+noncomputable def pAtB (bl : List (List (List ℕ × List ℕ))) (c : ℕ) : List ℕ :=
+  (nth ([], []) (nth [] bl (Nat.div c blockLen)) (Nat.mod c blockLen)).1
+
+theorem pAtB_blocks {perms : List (List ℕ × List ℕ)} {c : ℕ} (hc : c < perms.length) :
+    pAtB (blocks blockLen perms.length perms) c = pAt perms c := by
+  have h1 : c / blockLen < perms.length := Nat.lt_of_le_of_lt (Nat.div_le_self c blockLen) hc
+  have h2 : c % blockLen < blockLen := Nat.mod_lt c (by decide)
+  rw [pAtB, pAt]
+  change (nth ([], []) (nth [] (blocks blockLen perms.length perms) (c / blockLen))
+    (c % blockLen)).1 = _
+  rw [nth_blocks ([], []) _ _ _ _ h1 h2, Nat.div_add_mod']
+
+/-- The entries `row[k]` with `j + k < row[k]`. -/
+def childrenFrom : ℕ → List ℕ → List ℕ
+  | _, [] => []
+  | j, c :: cs => bif Nat.blt j c then c :: childrenFrom (j + 1) cs else childrenFrom (j + 1) cs
+
+theorem exists_of_mem_childrenFrom : ∀ {j : ℕ} {row : List ℕ} {i : ℕ}, i ∈ childrenFrom j row →
+    ∃ k, j + k < i ∧ nth 0 row k = i
+  | _, [], _, h => absurd h List.not_mem_nil
+  | j, c :: cs, i, h => by
+    rw [childrenFrom] at h
+    cases hb : Nat.blt j c with
+    | false =>
+      rw [hb, Bool.cond_false] at h
+      obtain ⟨k, hk, e⟩ := exists_of_mem_childrenFrom h
+      exact ⟨k + 1, by omega, e⟩
+    | true =>
+      rw [hb, Bool.cond_true] at h
+      rcases List.mem_cons.mp h with rfl | h
+      · exact ⟨0, Nat.blt_eq.mp hb, rfl⟩
+      · obtain ⟨k, hk, e⟩ := exists_of_mem_childrenFrom h
+        exact ⟨k + 1, by omega, e⟩
+
+/-- Group certificate. `perms` is a list of pairs `(p, q)`, and `gens` a list of pairs `(g, row)`
+of the index of a generator and its row of the multiplication table, such that
+
+* every pair in `perms` consists of inverse permutations of `[0, t)` (`checkBitPerm`);
 * `perms` is nonempty and its first entry is the identity;
 * the codes `permCode t p` are strictly increasing along the list: the `p`'s are sorted
   strictly lexicographically by their first `t` entries (in particular they are distinct);
-* `comp[i][j]` is an index `c` with `p_c[x] = p_i[p_j[x]]` for all `x < t`;
-* `inv[i]` is an index `c` with `p_c[x] = q_i[x]` for all `x < t`. -/
-noncomputable def checkBitGroup (t : ℕ) (perms : List (List ℕ × List ℕ)) (comp : List (List ℕ))
-    (inv : List ℕ) : Bool :=
+* for every `(g, row)` in `gens` and `j < perms.length`, `row[j]` is an index `c` with
+  `p_c[x] = p_g[p_j[x]]` for all `x < t`;
+* every index `i ≠ 0` occurs as `row[j]` for some `(g, row)` in `gens` and some `j < i` (so that
+  every permutation in the list is a product of generators);
+* `inv[i]` is an index `c` with `p_c[x] = q_i[x]` for all `x < t`.
+
+Taking all indices as generators, `gens` is the full multiplication table. -/
+noncomputable def checkBitGroup (t : ℕ) (perms : List (List ℕ × List ℕ))
+    (gens : List (ℕ × List ℕ)) (inv : List ℕ) : Bool :=
   perms.all (fun e => checkBitPerm t e.1 e.2) &&
   (Nat.blt 0 perms.length &&
   ((allRange t fun x => Nat.beq (nth 0 (pAt perms 0) x) x) &&
   (increasing (perms.map fun e => permCode t e.1) &&
-  (allZip [] (fun ei row => allZip 0 (fun ej c =>
-      Nat.blt c perms.length && eqComp t (pAt perms c) ei.1 ej.1) perms row) perms comp &&
-  allZip 0 (fun ei c => Nat.blt c perms.length && eqOn t (pAt perms c) ei.2) perms inv))))
+  (gens.all (fun g => allZip 0 (fun ej c => Nat.blt c perms.length &&
+      eqComp (pAt perms g.1) t (pAtB (blocks blockLen perms.length perms) c) ej.1) perms g.2) &&
+  (Nat.beq (Nat.lor (maskOf (gens.flatMap fun g => childrenFrom 0 g.2)) 1)
+      (Nat.sub (Nat.pow 2 perms.length) 1) &&
+  allZip 0 (fun ei c => Nat.blt c perms.length &&
+      eqOn t (pAtB (blocks blockLen perms.length perms) c) ei.2) perms inv)))))
 
-theorem checkBitGroup_spec {t : ℕ} {perms : List (List ℕ × List ℕ)} {comp : List (List ℕ)}
-    {inv : List ℕ} (h : checkBitGroup t perms comp inv = true) :
+theorem checkBitGroup_spec {t : ℕ} {perms : List (List ℕ × List ℕ)} {gens : List (ℕ × List ℕ)}
+    {inv : List ℕ} (h : checkBitGroup t perms gens inv = true) :
     (∀ i < perms.length, checkBitPerm t (pAt perms i) (qAt perms i) = true) ∧
     0 < perms.length ∧
     (∀ x < t, nth 0 (pAt perms 0) x = x) ∧
@@ -381,11 +460,31 @@ theorem checkBitGroup_spec {t : ℕ} {perms : List (List ℕ × List ℕ)} {comp
     (∀ i < perms.length, ∃ c < perms.length,
       ∀ x < t, nth 0 (pAt perms c) x = nth 0 (qAt perms i) x) := by
   simp only [checkBitGroup, Bool.and_eq_true] at h
-  obtain ⟨h1, h2, h3, h4, h5, h6⟩ := h
-  refine ⟨fun i hi => ?_, Nat.blt_eq.mp h2, fun x hx => ?_, fun i hi j hj e => ?_,
-    fun i hi j hj => ?_, fun i hi => ?_⟩
-  · exact List.all_eq_true.mp h1 _ (nth_mem _ hi)
-  · exact Nat.beq_eq.mp (allRange_iff.mp h3 x hx)
+  obtain ⟨h1, h2, h3, h4, h5, h6, h7⟩ := h
+  have hperm : ∀ i < perms.length, checkBitPerm t (pAt perms i) (qAt perms i) = true :=
+    fun i hi => List.all_eq_true.mp h1 _ (nth_mem _ hi)
+  have hone : ∀ x < t, nth 0 (pAt perms 0) x = x :=
+    fun x hx => Nat.beq_eq.mp (allRange_iff.mp h3 x hx)
+  have hrow : ∀ g ∈ gens, ∀ j < perms.length, nth 0 g.2 j < perms.length ∧ ∀ x < t,
+      nth 0 (pAt perms (nth 0 g.2 j)) x = nth 0 (pAt perms g.1) (nth 0 (pAt perms j) x) := by
+    intro g hg j hj
+    have h8 := allZip_spec ([], []) 0 (List.all_eq_true.mp h5 g hg) j hj
+    rw [Bool.and_eq_true, Nat.blt_eq] at h8
+    rw [pAtB_blocks h8.1] at h8
+    exact ⟨h8.1, eqComp_spec h8.2⟩
+  have hreach : ∀ i, 0 < i → i < perms.length → ∃ g ∈ gens, ∃ j < i, nth 0 g.2 j = i := by
+    intro i hpos hi
+    have e1 : (maskOf (gens.flatMap fun g => childrenFrom 0 g.2) ||| 1).testBit i =
+        (2 ^ perms.length - 1).testBit i :=
+      congrArg (fun z => z.testBit i) (Nat.beq_eq.mp h6)
+    rw [Nat.testBit_or, testBit_maskOf, Nat.testBit_two_pow_sub_one, decide_eq_true hi,
+      Bool.or_eq_true, decide_eq_true_iff, Nat.testBit_one_eq_true_iff_self_eq_zero] at e1
+    rcases e1 with e1 | e1
+    · obtain ⟨g, hg, hgi⟩ := List.mem_flatMap.mp e1
+      obtain ⟨k, hk, e⟩ := exists_of_mem_childrenFrom hgi
+      exact ⟨g, hg, k, by omega, e⟩
+    · omega
+  refine ⟨hperm, Nat.blt_eq.mp h2, hone, fun i hi j hj e => ?_, fun i => ?_, fun i hi => ?_⟩
   · have hpw := List.pairwise_iff_getElem.mp (List.pairwise_map.mp (increasing_spec h4))
     have hcode : permCode t (pAt perms i) = permCode t (pAt perms j) := permCode_congr e
     rw [pAt, pAt, nth_eq_getElem _ hi, nth_eq_getElem _ hj] at hcode
@@ -393,19 +492,29 @@ theorem checkBitGroup_spec {t : ℕ} {perms : List (List ℕ × List ℕ)} {comp
     · exact absurd hcode (Nat.ne_of_lt (hpw i j hi hj hij))
     · exact hij
     · exact absurd hcode.symm (Nat.ne_of_lt (hpw j i hj hi hij))
-  · have h7 := allZip_spec ([], []) 0 (allZip_spec ([], []) [] h5 i hi) j hj
-    rw [Bool.and_eq_true, Nat.blt_eq] at h7
-    exact ⟨_, h7.1, fun x hx => Nat.beq_eq.mp (allRange_iff.mp h7.2 x hx)⟩
-  · have h7 := allZip_spec ([], []) 0 h6 i hi
-    rw [Bool.and_eq_true, Nat.blt_eq] at h7
-    exact ⟨_, h7.1, fun x hx => Nat.beq_eq.mp (allRange_iff.mp h7.2 x hx)⟩
+  · induction i using Nat.strong_induction_on with
+    | _ i ih =>
+      intro hi j hj
+      rcases Nat.eq_zero_or_pos i with rfl | hpos
+      · exact ⟨j, hj, fun x hx => (hone _ (checkBitPerm_spec (hperm j hj) hx).1).symm⟩
+      · obtain ⟨g, hg, k, hk, hki⟩ := hreach i hpos hi
+        have hk' : k < perms.length := Nat.lt_trans hk hi
+        obtain ⟨c, hc, hcx⟩ := ih k hk hk' j hj
+        have hgk := (hrow g hg k hk').2
+        rw [hki] at hgk
+        refine ⟨nth 0 g.2 c, (hrow g hg c hc).1, fun x hx => ?_⟩
+        rw [(hrow g hg c hc).2 x hx, hcx x hx, hgk _ (checkBitPerm_spec (hperm j hj) hx).1]
+  · have h8 := allZip_spec ([], []) 0 h7 i hi
+    rw [Bool.and_eq_true, Nat.blt_eq] at h8
+    rw [pAtB_blocks h8.1] at h8
+    exact ⟨_, h8.1, fun x hx => Nat.beq_eq.mp (allRange_iff.mp h8.2 x hx)⟩
 
 /-- The action of the `i`-th permutation of the list. -/
 noncomputable def bitAct (t : ℕ) (perms : List (List ℕ × List ℕ)) (i α : ℕ) : ℕ :=
   actBits t (pAt perms i) α
 
-theorem isActGroup_of_check {t : ℕ} {perms : List (List ℕ × List ℕ)} {comp : List (List ℕ)}
-    {inv : List ℕ} (h : checkBitGroup t perms comp inv = true) :
+theorem isActGroup_of_check {t : ℕ} {perms : List (List ℕ × List ℕ)} {gens : List (ℕ × List ℕ)}
+    {inv : List ℕ} (h : checkBitGroup t perms gens inv = true) :
     IsActGroup perms.length (2 ^ t) (bitAct t perms) := by
   obtain ⟨hperm, hpos, hone, hinj, hmul, hinv⟩ := checkBitGroup_spec h
   refine ⟨hpos, fun i hi α _ => actBits_lt (hperm i hi) α, fun α hα => ?_, fun i hi j hj => ?_,
@@ -445,68 +554,174 @@ theorem isActGroup_of_check {t : ℕ} {perms : List (List ℕ × List ℕ)} {com
     rw [← of_decide_eq_true h1.symm] at j4
     exact j4.symm
 
+/-! ### Comparing a number with its image, most significant bit first -/
+
+/-- The number whose bit `j < t` is bit `q[j]` of `α`. For inverse permutations `(p, q)` this is
+`actBits t p α` (`pullBits_eq_actBits`). -/
+noncomputable def pullBits (t : ℕ) (q : List ℕ) (α : ℕ) : ℕ :=
+  Nat.ofBits fun j : Fin t => α.testBit (nth 0 q j)
+
+theorem testBit_pullBits (t : ℕ) (q : List ℕ) (α j : ℕ) :
+    (pullBits t q α).testBit j = (decide (j < t) && α.testBit (nth 0 q j)) := by
+  by_cases hj : j < t
+  · rw [pullBits, Nat.testBit_ofBits_lt _ _ hj, decide_eq_true hj, Bool.true_and]
+  · rw [pullBits, Nat.testBit_ofBits_ge _ _ (Nat.not_lt.mp hj), decide_eq_false hj, Bool.false_and]
+
+theorem pullBits_lt (t : ℕ) (q : List ℕ) (α : ℕ) : pullBits t q α < 2 ^ t :=
+  Nat.ofBits_lt_two_pow _
+
+theorem pullBits_eq_actBits {t : ℕ} {p q : List ℕ} (h : checkBitPerm t p q = true) (α : ℕ) :
+    pullBits t q α = actBits t p α :=
+  Nat.eq_of_testBit_eq fun j => by rw [testBit_pullBits, testBit_actBits h]
+
+/-- `[q[n - 1], …, q[0]]`, as a specification. -/
+noncomputable def revTake (n : ℕ) (q : List ℕ) : List ℕ := ((List.range n).map (nth 0 q)).reverse
+
+theorem revTake_succ (n : ℕ) (q : List ℕ) : revTake (n + 1) q = nth 0 q n :: revTake n q := by
+  simp [revTake, List.range_succ]
+
+/-- `[q[n - 1], …, q[0]] ++ acc`, by direct recursion. -/
+noncomputable def revAux (n : ℕ) : List ℕ → List ℕ → List ℕ :=
+  Nat.rec (motive := fun _ => List ℕ → List ℕ → List ℕ) (fun _ acc => acc)
+    (fun _ ih q acc => List.rec (motive := fun _ => List ℕ) (ih [] (0 :: acc))
+      (fun x xs _ => ih xs (x :: acc)) q) n
+
+theorem revAux_succ (n : ℕ) (q acc : List ℕ) :
+    revAux (n + 1) q acc = revAux n q.tail (nth 0 q 0 :: acc) := by
+  cases q <;> rfl
+
+theorem revAux_eq : ∀ (n : ℕ) (q acc : List ℕ), revAux n q acc = revTake n q ++ acc
+  | 0, _, _ => rfl
+  | n + 1, q, acc => by
+    have h1 : (List.range n).map (nth 0 q.tail) = (List.range n).map (nth 0 q ∘ Nat.succ) :=
+      List.map_congr_left fun i _ => nth_tail q i
+    rw [revAux_succ, revAux_eq n, revTake, revTake, List.range_succ_eq_map, List.map_cons,
+      List.map_map, List.reverse_cons, List.append_assoc, h1]
+    rfl
+
+/-- The reversed backward lists of all permutations. -/
+noncomputable def revQs (t : ℕ) (perms : List (List ℕ × List ℕ)) : List (List ℕ) :=
+  List.rec (motive := fun _ => List (List ℕ)) [] (fun e _ ih => revAux t e.2 [] :: ih) perms
+
+theorem revQs_cons (t : ℕ) (e : List ℕ × List ℕ) (l : List (List ℕ × List ℕ)) :
+    revQs t (e :: l) = revTake t e.2 :: revQs t l := by
+  change revAux t e.2 [] :: revQs t l = _
+  rw [revAux_eq, List.append_nil]
+
+/-- The comparison of `α` with `β` once their bits `j` are known to differ (and the higher bits
+agree): `kgt` if bit `j` of `α` is clear (so that `α < β`), `false` otherwise. -/
+noncomputable def bitExit (α j : ℕ) (kgt : Bool) : Bool :=
+  Nat.rec (motive := fun _ => Bool) kgt (fun _ _ => false) (Nat.land (Nat.shiftRight α j) 1)
+
+/-- Compare `α` with the number `β` whose bit `i` is bit `q[i]` of `α`, from bit `j` downwards,
+where `r = [q[j], …, q[0]]`: the result is `false` if `β < α`, `kgt` if `α < β`, and `keq` if they
+agree on the bits up to `j`. The comparison stops at the first bit that differs. (All arguments
+are passed along the recursion, so that the kernel copies as little as possible at each step.) -/
+noncomputable def cmpLoop (r : List ℕ) : ℕ → ℕ → Bool → Bool → Bool :=
+  List.rec (motive := fun _ => ℕ → ℕ → Bool → Bool → Bool) (fun _ _ _ keq => keq)
+    (fun y _ ih α j kgt keq =>
+      Nat.rec (motive := fun _ => Bool) (ih α (Nat.sub j 1) kgt keq) (fun _ _ => bitExit α j kgt)
+        (Nat.land (Nat.xor (Nat.shiftRight α j) (Nat.shiftRight α y)) 1)) r
+
+theorem cmpLoop_nil (α j : ℕ) (kgt keq : Bool) : cmpLoop [] α j kgt keq = keq := rfl
+
+theorem cmpLoop_cons (α j y : ℕ) (ys : List ℕ) (kgt keq : Bool) :
+    cmpLoop (y :: ys) α j kgt keq =
+      Nat.rec (motive := fun _ => Bool) (cmpLoop ys α (j - 1) kgt keq)
+        (fun _ _ => bitExit α j kgt) ((α >>> j + α >>> y) % 2) := by
+  rw [← Nat.xor_mod_two_eq, ← Nat.and_one_is_mod]
+  rfl
+
+theorem bitExit_eq (α j : ℕ) (kgt : Bool) :
+    bitExit α j kgt = Nat.rec (motive := fun _ => Bool) kgt (fun _ _ => false) ((α >>> j) % 2) := by
+  rw [← Nat.and_one_is_mod]
+  rfl
+
+theorem shiftRight_mod_two (x j : ℕ) : (x >>> j) % 2 = (x.testBit j).toNat := by
+  rw [Nat.shiftRight_eq_div_pow, Nat.toNat_testBit]
+
+theorem cmpLoop_spec {t α β : ℕ} {q : List ℕ} {kgt keq : Bool}
+    (hβ : ∀ j < t, β.testBit j = α.testBit (nth 0 q j)) :
+    ∀ n ≤ t, α >>> n = β >>> n → cmpLoop (revTake n q) α (n - 1) kgt keq = true →
+      (α < β ∧ kgt = true) ∨ (α = β ∧ keq = true)
+  | 0, _, hs, h => Or.inr ⟨hs, h⟩
+  | j + 1, hj, hs, h => by
+    have hb : (α >>> nth 0 q j) % 2 = (β >>> j) % 2 := by
+      rw [shiftRight_mod_two, shiftRight_mod_two, hβ j hj]
+    rw [revTake_succ, cmpLoop_cons, Nat.add_sub_cancel, Nat.add_mod, hb] at h
+    rw [Nat.shiftRight_succ, Nat.shiftRight_succ] at hs
+    rcases Nat.mod_two_eq_zero_or_one (α >>> j) with ha | ha <;>
+      rcases Nat.mod_two_eq_zero_or_one (β >>> j) with hb' | hb' <;> rw [ha, hb'] at h
+    · exact cmpLoop_spec hβ j (Nat.le_of_succ_le hj) (by omega) h
+    · rw [show (0 + 1) % 2 = 1 from rfl, show Nat.rec (motive := fun _ => Bool)
+        (cmpLoop (revTake j q) α (j - 1) kgt keq) (fun _ _ => bitExit α j kgt) 1 =
+        bitExit α j kgt from rfl, bitExit_eq, ha] at h
+      refine Or.inl ⟨?_, h⟩
+      by_contra hlt
+      have h1 : β >>> j ≤ α >>> j := by
+        rw [Nat.shiftRight_eq_div_pow, Nat.shiftRight_eq_div_pow]
+        exact Nat.div_le_div_right (Nat.not_lt.mp hlt)
+      omega
+    · rw [show (1 + 0) % 2 = 1 from rfl, show Nat.rec (motive := fun _ => Bool)
+        (cmpLoop (revTake j q) α (j - 1) kgt keq) (fun _ _ => bitExit α j kgt) 1 =
+        bitExit α j kgt from rfl, bitExit_eq, ha] at h
+      exact absurd h (by simp)
+    · exact cmpLoop_spec hβ j (Nat.le_of_succ_le hj) (by omega) h
+
 /-! ### Certified segments of orbit minima -/
 
 /-- `α` is the minimum of its orbit, and the orbit has `m` elements (by orbit–stabilizer: `m`
 times the number of permutations fixing `α` is the order of the group). -/
 def IsRep (t : ℕ) (perms : List (List ℕ × List ℕ)) (α m : ℕ) : Prop :=
-  (∀ e ∈ perms, α ≤ actBits t e.1 α) ∧
-    m * perms.countP (fun e => Nat.ble (actBits t e.1 α) α) = perms.length
+  (∀ e ∈ perms, α ≤ pullBits t e.2 α) ∧
+    m * perms.countP (fun e => decide (pullBits t e.2 α = α)) = perms.length
 
-/-- One step of the loop over the group: fail if the image `img` of `α` is below `α`; count it
-if it equals `α`. (A definition rather than an inlined recursor, so that the kernel evaluates
+/-- The loop over the group, given by the reversed backward lists `rqs` (of length `j₀ + 1`): fail
+if an image of `α` is below `α`, count the images equal to `α`, and compare `m` times the final
+count with `N`. (Every step goes through the definition `cmpLoop`, so that the kernel evaluates
 the loop iteratively.) -/
-noncomputable def repStep (α img : ℕ) (k : ℕ → Bool) (cnt : ℕ) : Bool :=
-  Bool.rec (motive := fun _ => Bool) false
-    (Bool.rec (motive := fun _ => Bool) (k cnt) (k (Nat.succ cnt)) (Nat.ble img α))
-    (Nat.ble α img)
-
-/-- The loop over the group: check that no image of `α` is below `α`, count the images equal to
-`α`, and compare `m` times the final count with `N`. -/
-noncomputable def repLoop (t N α m : ℕ) (perms : List (List ℕ × List ℕ)) : ℕ → Bool :=
+noncomputable def repLoop (j₀ N α m : ℕ) (rqs : List (List ℕ)) : ℕ → Bool :=
   List.rec (motive := fun _ => ℕ → Bool) (fun cnt => Nat.beq (Nat.mul m cnt) N)
-    (fun e _ ih => repStep α (actBits t e.1 α) ih) perms
+    (fun r _ ih cnt => cmpLoop r α j₀ (ih cnt) (ih (Nat.succ cnt))) rqs
 
-theorem repLoop_nil (t N α m cnt : ℕ) : repLoop t N α m [] cnt = Nat.beq (Nat.mul m cnt) N := rfl
+theorem repLoop_nil (j₀ N α m cnt : ℕ) :
+    repLoop j₀ N α m [] cnt = Nat.beq (Nat.mul m cnt) N := rfl
 
-theorem repLoop_cons (t N α m cnt : ℕ) (e : List ℕ × List ℕ) (l : List (List ℕ × List ℕ)) :
-    repLoop t N α m (e :: l) cnt = repStep α (actBits t e.1 α) (repLoop t N α m l) cnt := rfl
+theorem repLoop_cons (j₀ N α m cnt : ℕ) (r : List ℕ) (l : List (List ℕ)) :
+    repLoop j₀ N α m (r :: l) cnt =
+      cmpLoop r α j₀ (repLoop j₀ N α m l cnt) (repLoop j₀ N α m l (Nat.succ cnt)) := rfl
 
-theorem repLoop_spec {t N α m : ℕ} : ∀ (l : List (List ℕ × List ℕ)) (cnt : ℕ),
-    repLoop t N α m l cnt = true → (∀ e ∈ l, α ≤ actBits t e.1 α) ∧
-      m * (cnt + l.countP fun e => Nat.ble (actBits t e.1 α) α) = N
+theorem repLoop_spec {t N α m : ℕ} (hα : α < 2 ^ t) : ∀ (l : List (List ℕ × List ℕ)) (cnt : ℕ),
+    repLoop (t - 1) N α m (revQs t l) cnt = true → (∀ e ∈ l, α ≤ pullBits t e.2 α) ∧
+      m * (cnt + l.countP fun e => decide (pullBits t e.2 α = α)) = N
   | [], cnt, h => by
-    rw [repLoop_nil, Nat.beq_eq] at h
+    rw [show revQs t [] = [] from rfl, repLoop_nil, Nat.beq_eq] at h
     exact ⟨by simp, by simpa using h⟩
   | e :: l, cnt, h => by
-    rw [repLoop_cons, repStep] at h
-    cases h1 : Nat.ble α (actBits t e.1 α) with
-    | false =>
-      rw [h1] at h
-      exact absurd h (by simp)
-    | true =>
-      rw [h1] at h
-      have h1' := Nat.le_of_ble_eq_true h1
-      cases h2 : Nat.ble (actBits t e.1 α) α with
-      | false =>
-        rw [h2] at h
-        obtain ⟨ha, hb⟩ := repLoop_spec l cnt h
-        refine ⟨fun e' he' => ?_, ?_⟩
-        · rcases List.mem_cons.mp he' with rfl | he'
-          exacts [h1', ha e' he']
-        · rw [List.countP_cons_of_neg (p := fun e : List ℕ × List ℕ => Nat.ble (actBits t e.1 α) α)
-            (by rw [h2]; simp)]
-          exact hb
-      | true =>
-        rw [h2] at h
-        obtain ⟨ha, hb⟩ := repLoop_spec l (Nat.succ cnt) h
-        refine ⟨fun e' he' => ?_, ?_⟩
-        · rcases List.mem_cons.mp he' with rfl | he'
-          exacts [h1', ha e' he']
-        · rw [List.countP_cons_of_pos
-            (p := fun e : List ℕ × List ℕ => Nat.ble (actBits t e.1 α) α) h2, ← hb]
-          congr 1
-          omega
+    rw [revQs_cons, repLoop_cons] at h
+    have hs : α >>> t = pullBits t e.2 α >>> t := by
+      rw [Nat.shiftRight_eq_div_pow, Nat.shiftRight_eq_div_pow, Nat.div_eq_of_lt hα,
+        Nat.div_eq_of_lt (pullBits_lt t e.2 α)]
+    rcases cmpLoop_spec (β := pullBits t e.2 α) (q := e.2)
+      (fun j hj => by rw [testBit_pullBits, decide_eq_true hj, Bool.true_and])
+      t (Nat.le_refl t) hs h with ⟨hlt, hk⟩ | ⟨heq, hk⟩
+    · obtain ⟨ha, hb⟩ := repLoop_spec hα l cnt hk
+      refine ⟨fun e' he' => ?_, ?_⟩
+      · rcases List.mem_cons.mp he' with rfl | he'
+        exacts [Nat.le_of_lt hlt, ha e' he']
+      · rw [List.countP_cons_of_neg
+          (p := fun e : List ℕ × List ℕ => decide (pullBits t e.2 α = α))
+          (by rw [decide_eq_true_iff]; exact Nat.ne_of_gt hlt)]
+        exact hb
+    · obtain ⟨ha, hb⟩ := repLoop_spec hα l (Nat.succ cnt) hk
+      refine ⟨fun e' he' => ?_, ?_⟩
+      · rcases List.mem_cons.mp he' with rfl | he'
+        exacts [Nat.le_of_eq heq, ha e' he']
+      · rw [List.countP_cons_of_pos
+          (p := fun e : List ℕ × List ℕ => decide (pullBits t e.2 α = α))
+          (decide_eq_true heq.symm), ← hb]
+        congr 1
+        omega
 
 /-- Lazy conjunction of three Booleans. (A definition, so that the kernel evaluates loops going
 through it iteratively.) -/
@@ -518,31 +733,31 @@ theorem and3_eq_true {a b c : Bool} : and3 a b c = true ↔ a = true ∧ b = tru
 
 /-- The loop over a segment: the entries `(α, m)` have strictly increasing `α` in `[lo, hi)`, and
 each passes `repLoop`. -/
-noncomputable def segLoop (t N hi : ℕ) (perms : List (List ℕ × List ℕ)) (seg : List (ℕ × ℕ)) :
-    ℕ → Bool :=
+noncomputable def segLoop (j₀ N hi : ℕ) (rqs : List (List ℕ)) (seg : List (ℕ × ℕ)) : ℕ → Bool :=
   List.rec (motive := fun _ => ℕ → Bool) (fun lo => Nat.ble lo hi)
     (fun e _ ih lo => Prod.rec (motive := fun _ => Bool)
-      (fun α m => and3 (Nat.ble lo α) (repLoop t N α m perms 0) (ih (Nat.succ α))) e) seg
+      (fun α m => and3 (Nat.ble lo α) (repLoop j₀ N α m rqs 0) (ih (Nat.succ α))) e) seg
 
-theorem segLoop_nil (t N hi lo : ℕ) (perms : List (List ℕ × List ℕ)) :
-    segLoop t N hi perms [] lo = Nat.ble lo hi := rfl
+theorem segLoop_nil (j₀ N hi lo : ℕ) (rqs : List (List ℕ)) :
+    segLoop j₀ N hi rqs [] lo = Nat.ble lo hi := rfl
 
-theorem segLoop_cons (t N hi lo α m : ℕ) (perms : List (List ℕ × List ℕ)) (seg : List (ℕ × ℕ)) :
-    segLoop t N hi perms ((α, m) :: seg) lo =
-      and3 (Nat.ble lo α) (repLoop t N α m perms 0) (segLoop t N hi perms seg (Nat.succ α)) := rfl
+theorem segLoop_cons (j₀ N hi lo α m : ℕ) (rqs : List (List ℕ)) (seg : List (ℕ × ℕ)) :
+    segLoop j₀ N hi rqs ((α, m) :: seg) lo =
+      and3 (Nat.ble lo α) (repLoop j₀ N α m rqs 0) (segLoop j₀ N hi rqs seg (Nat.succ α)) := rfl
 
-theorem segLoop_spec {t hi : ℕ} {perms : List (List ℕ × List ℕ)} :
-    ∀ (seg : List (ℕ × ℕ)) (lo : ℕ), segLoop t perms.length hi perms seg lo = true →
+theorem segLoop_spec {t hi : ℕ} {perms : List (List ℕ × List ℕ)} (hhi : hi ≤ 2 ^ t) :
+    ∀ (seg : List (ℕ × ℕ)) (lo : ℕ),
+      segLoop (t - 1) perms.length hi (revQs t perms) seg lo = true →
       lo ≤ hi ∧ seg.Pairwise (fun a b => a.1 < b.1) ∧
         ∀ e ∈ seg, lo ≤ e.1 ∧ e.1 < hi ∧ IsRep t perms e.1 e.2
   | [], lo, h => ⟨Nat.le_of_ble_eq_true h, List.Pairwise.nil, by simp⟩
   | (α, m) :: seg, lo, h => by
     rw [segLoop_cons, and3_eq_true] at h
     obtain ⟨h1, h2, h3⟩ := h
-    obtain ⟨g1, g2, g3⟩ := segLoop_spec seg _ h3
+    obtain ⟨g1, g2, g3⟩ := segLoop_spec hhi seg _ h3
     have hlo : lo ≤ α := Nat.le_of_ble_eq_true h1
     have hrep : IsRep t perms α m := by
-      have h4 := repLoop_spec perms 0 h2
+      have h4 := repLoop_spec (Nat.lt_of_lt_of_le g1 hhi) perms 0 h2
       rw [Nat.zero_add] at h4
       exact h4
     refine ⟨Nat.le_trans hlo (Nat.le_of_succ_le g1),
@@ -553,11 +768,13 @@ theorem segLoop_spec {t hi : ℕ} {perms : List (List ℕ × List ℕ)} :
 
 /-- Segment check. `seg` lists pairs `(α, m)`. Checks: `lo ≤ hi ≤ 2 ^ t`; the `α`'s are strictly
 increasing and lie in `[lo, hi)`; each `α` is the minimum of its orbit (`α ≤ actBits t p α` for
-every `p` in `perms`); and `m` times the number of `p` in `perms` fixing `α` is `perms.length`
-(so that `m` is the size of the orbit). -/
+every `(p, q)` in `perms`, checked by comparing `α` with the image under `q⁻¹ = p` from the most
+significant bit downwards); and `m` times the number of permutations in `perms` fixing `α` is
+`perms.length` (so that `m` is the size of the orbit). -/
 noncomputable def checkSeg (t : ℕ) (perms : List (List ℕ × List ℕ)) (lo hi : ℕ)
     (seg : List (ℕ × ℕ)) : Bool :=
-  and3 (Nat.ble hi (Nat.pow 2 t)) (Nat.ble lo hi) (segLoop t perms.length hi perms seg lo)
+  and3 (Nat.ble hi (Nat.pow 2 t)) (Nat.ble lo hi)
+    (segLoop (Nat.sub t 1) perms.length hi (revQs t perms) seg lo)
 
 /-- A certified part of an orbit sum: there is a list of orbit minima in `[lo, hi)`, with their
 orbit sizes, with total orbit size `M` and weighted sum `W`. -/
@@ -572,8 +789,9 @@ theorem OrbitSeg.of_check {t : ℕ} {perms : List (List ℕ × List ℕ)} {F : �
     OrbitSeg t perms F lo hi M W := by
   rw [checkSeg, and3_eq_true] at h
   obtain ⟨h1, h2, h3⟩ := h
-  obtain ⟨_, g2, g3⟩ := segLoop_spec seg lo h3
-  exact ⟨Nat.le_of_ble_eq_true h2, Nat.le_of_ble_eq_true h1, seg, g2, g3, hM, hW⟩
+  have hhi : hi ≤ 2 ^ t := Nat.le_of_ble_eq_true h1
+  obtain ⟨_, g2, g3⟩ := segLoop_spec hhi seg lo h3
+  exact ⟨Nat.le_of_ble_eq_true h2, hhi, seg, g2, g3, hM, hW⟩
 
 theorem OrbitSeg.append {t : ℕ} {perms : List (List ℕ × List ℕ)} {F : ℕ → ℕ}
     {lo mid hi M₁ W₁ M₂ W₂ : ℕ} (h₁ : OrbitSeg t perms F lo mid M₁ W₁)
@@ -592,26 +810,29 @@ theorem OrbitSeg.append {t : ℕ} {perms : List (List ℕ × List ℕ)} {F : ℕ
 /-- **Sum over orbit representatives.** If `F` is invariant under the group and the certified
 orbits of minima in `[0, 2 ^ t)` have total size `2 ^ t`, then the sum of `F` over `[0, 2 ^ t)`
 is the weighted sum over the minima. -/
-theorem OrbitSeg.sum_eq {t : ℕ} {perms : List (List ℕ × List ℕ)} {comp : List (List ℕ)}
-    {inv : List ℕ} {F : ℕ → ℕ} {W : ℕ} (hgrp : checkBitGroup t perms comp inv = true)
+theorem OrbitSeg.sum_eq {t : ℕ} {perms : List (List ℕ × List ℕ)} {gens : List (ℕ × List ℕ)}
+    {inv : List ℕ} {F : ℕ → ℕ} {W : ℕ} (hgrp : checkBitGroup t perms gens inv = true)
     (hF : ∀ e ∈ perms, ∀ α < 2 ^ t, F (actBits t e.1 α) = F α)
     (h : OrbitSeg t perms F 0 (2 ^ t) (2 ^ t) W) :
     ∑ α ∈ Finset.range (2 ^ t), F α = W := by
   obtain ⟨_, _, seg, hp, hall, hM, hW⟩ := h
   have hG := isActGroup_of_check hgrp
+  have hperm := (checkBitGroup_spec hgrp).1
+  have hpull : ∀ i < perms.length, ∀ α,
+      pullBits t (nth ([], []) perms i).2 α = bitAct t perms i α :=
+    fun i hi α => pullBits_eq_actBits (hperm i hi) α
   rw [← hW]
   refine hG.sum_eq (fun i hi α hα => hF _ (nth_mem _ hi) α hα) hp (fun e he => ?_) hM
   obtain ⟨_, hlt, hmin, hcnt⟩ := hall e he
-  have hmin' : ∀ i < perms.length, e.1 ≤ bitAct t perms i e.1 :=
-    fun i hi => hmin _ (nth_mem _ hi)
   have hst : actStab perms.length (bitAct t perms) e.1 = (Finset.range perms.length).filter
-      fun i => Nat.ble (actBits t (nth ([], []) perms i).1 e.1) e.1 = true := by
+      fun i => decide (pullBits t (nth ([], []) perms i).2 e.1 = e.1) = true := by
     refine Finset.filter_congr fun i hi => ?_
-    have h1 := hmin' i (Finset.mem_range.mp hi)
-    rw [Nat.ble_eq]
-    exact ⟨fun h2 => Nat.le_of_eq h2, fun h2 => Nat.le_antisymm h2 h1⟩
-  refine ⟨hlt, hmin', ?_⟩
-  rw [hst, ← countP_eq_card_filter_range ([], []) (fun e' => Nat.ble (actBits t e'.1 e.1) e.1)]
-  exact hcnt
+    rw [decide_eq_true_iff, hpull i (Finset.mem_range.mp hi)]
+  refine ⟨hlt, fun i hi => ?_, ?_⟩
+  · rw [← hpull i hi]
+    exact hmin _ (nth_mem _ hi)
+  · rw [hst, ← countP_eq_card_filter_range ([], [])
+      (fun e' => decide (pullBits t e'.2 e.1 = e.1))]
+    exact hcnt
 
 end RACert

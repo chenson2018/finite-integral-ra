@@ -24,43 +24,25 @@ namespace S0
 
 /-- Orbit minima `(α, orbit size)` in this segment. -/
 def seg : List (ℕ × ℕ) :=
-  [(0, 1), (1, 2), (3, 1), (4, 2), (5, 2), (6, 2), (7, 2), (12, 1), (13, 2), (15, 1)]
+  [(0, 1), (1, 1), (2, 1), (3, 1)]
 
 /-- Evidence: `0` for a leaf evaluated below, `x + 1` for a leaf killed by the quadruple `x`. -/
 def ev : List ℕ :=
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  [0, 0, 0, 0]
 
 /-- The evaluated leaves `(α, value)`. -/
 def live : List (ℕ × ℕ) :=
-  [(0, 95), (1, 184), (3, 2704), (4, 225), (5, 2142), (6, 564), (7, 5817), (12, 1050), (13, 5289), (15, 12290)]
+  [(0, 4954), (1, 6103), (2, 15824), (3, 17700)]
 
-theorem l0 : P.leaf 18 0 = 95 := by decide +kernel
+theorem leavesOK : P.checkLeaves 20 live = true := by decide +kernel
 
-theorem l1 : P.leaf 18 1 = 184 := by decide +kernel
+theorem segOK : checkSeg 2 perms 0 4 seg = true := by decide +kernel
 
-theorem l3 : P.leaf 18 3 = 2704 := by decide +kernel
+theorem evOK : P.checkEv 20 seg ev live 0 44581 = true := by decide +kernel
 
-theorem l4 : P.leaf 18 4 = 225 := by decide +kernel
-
-theorem l5 : P.leaf 18 5 = 2142 := by decide +kernel
-
-theorem l6 : P.leaf 18 6 = 564 := by decide +kernel
-
-theorem l7 : P.leaf 18 7 = 5817 := by decide +kernel
-
-theorem l12 : P.leaf 18 12 = 1050 := by decide +kernel
-
-theorem l13 : P.leaf 18 13 = 5289 := by decide +kernel
-
-theorem l15 : P.leaf 18 15 = 12290 := by decide +kernel
-
-theorem segOK : checkSeg 4 perms 0 16 seg = true := by decide +kernel
-
-theorem evOK : P.checkEv 18 seg ev live 0 44581 = true := by decide +kernel
-
-theorem total : OrbitSeg 4 perms (P.leaf 18) 0 16 16 44581 :=
+theorem total : OrbitSeg 2 perms (P.leaf 20) 0 4 4 44581 :=
   OrbitSeg.of_check segOK (by decide +kernel)
-    (checkEv_sum check rows evOK (.cons l0 (.cons l1 (.cons l3 (.cons l4 (.cons l5 (.cons l6 (.cons l7 (.cons l12 (.cons l13 (.cons l15 (.nil))))))))))))
+    (checkEv_sum check rows evOK (checkLeaves_spec rows leavesOK))
 
 end S0
 
