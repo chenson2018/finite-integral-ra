@@ -34,7 +34,7 @@ def ev : List ℕ :=
 def live : List (ℕ × ℕ) :=
   [(2417, 1741), (2419, 2577), (2423, 4097), (2431, 6753), (2432, 2), (2433, 5), (2435, 5), (2436, 2), (2437, 4), (2439, 4), (2444, 2), (2445, 8), (2447, 8), (2448, 8), (2449, 13), (2451, 29), (2452, 7), (2453, 10), (2455, 22), (2460, 11), (2461, 22), (2463, 50), (2464, 20), (2465, 20), (2467, 20), (2468, 23), (2469, 24), (2471, 24), (2472, 20), (2473, 20), (2475, 20), (2476, 22), (2477, 24), (2479, 24), (2480, 32), (2481, 28), (2483, 44), (2484, 45), (2485, 40), (2487, 72)]
 
-theorem leavesOK : P.checkLeaves 20 live = true := by decide +kernel
+theorem leavesOK : P.checkLeavesR 20 qm live = true := by decide +kernel
 
 theorem segOK : checkSeg 15 perms 2417 2488 seg = true := by decide +kernel
 
@@ -42,7 +42,7 @@ theorem evOK : P.checkEv 20 seg ev live 0 278625 = true := by decide +kernel
 
 theorem total : OrbitSeg 15 perms (P.leaf 20) 2417 2488 2475 278625 :=
   OrbitSeg.of_check segOK (by decide +kernel)
-    (checkEv_sum check rows evOK (checkLeaves_spec rows leavesOK))
+    (checkEv_sum check rows evOK (checkLeavesR_spec rows qmOK leavesOK))
 
 end S2
 

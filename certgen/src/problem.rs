@@ -187,3 +187,37 @@ impl Problem {
         (l, rr)
     }
 }
+
+impl Problem {
+    /// Masks of the high variables (relative to `b`) occurring in the two sides of the condition
+    /// of the quadruple with code `x`.
+    pub fn quad_masks(&self, x: usize, b: usize) -> (u64, u64) {
+        let (l, r) = self.quad_terms(x);
+        let mask = |terms: &Vec<(usize, usize)>| -> u64 {
+            let mut m = 0u64;
+            for &(i, j) in terms {
+                for c in [i, j] {
+                    if c >= b + 2 {
+                        m |= 1 << (c - 2 - b);
+                    }
+                }
+            }
+            m
+        };
+        (mask(&l), mask(&r))
+    }
+
+    /// Order the quadruples so that those depending only on slowly changing high variables (high
+    /// bits of `alpha`) come first, and return them in blocks with their masks.
+    pub fn order_quads(&mut self, b: usize, block: usize) -> Vec<Vec<(usize, u64, u64)>> {
+        let mut items: Vec<(usize, u64, u64)> = self.quads.iter().map(|&x| { let (m1, m2) = self.quad_masks(x, b); (x, m1, m2) }).collect();
+        // key: lowest relevant high variable, descending; quadruples without high variables first
+        items.sort_by_key(|&(x, m1, m2)| {
+            let m = m1 | m2;
+            let low = if m == 0 { 64 } else { m.trailing_zeros() as usize };
+            (std::cmp::Reverse(low), std::cmp::Reverse(m), x)
+        });
+        self.quads = items.iter().map(|e| e.0).collect();
+        items.chunks(block).map(|c| c.to_vec()).collect()
+    }
+}

@@ -508,6 +508,284 @@ theorem leafS_eq_leaf (hrows : P.checkRows = true) {b α : ℕ} (hα : α < 2 ^ 
   rw [Bool.eq_iff_iff]
   simp [List.all_eq_true]
 
+end Problem
+
+/-! ### Memoised residuals
+
+The value of one side of a quadruple's condition only depends on the high variables occurring in
+it. Masking `α` with these variables (`m`) and passing the result on in a canonical form makes
+the expression `dotRL P b x (α &&& m)` identical for all leaves agreeing on these variables, so
+that the kernel evaluates it once per declaration. Quadruples are processed in blocks, and the
+accumulated violations of a block are again shared between leaves agreeing on the block. -/
+
+/-- Reduce a small number and pass it on as a canonical expression. -/
+noncomputable def forceK (r : ℕ) (k : ℕ → ℕ) : ℕ :=
+  Nat.rec (motive := fun _ => ℕ) (k 0) (fun n _ => k (Nat.succ n)) r
+
+theorem forceK_eq (r : ℕ) (k : ℕ → ℕ) : forceK r k = k r := by
+  cases r <;> rfl
+
+/-- Every high variable in `row` is selected by the mask `m`. -/
+noncomputable def covers (b m : ℕ) (row : List ℕ) : Bool :=
+  row.all fun c => Nat.blt c (Nat.add b 2) || Nat.testBit m (Nat.sub (Nat.sub c 2) b)
+
+theorem kindOf_land {b α m c : ℕ}
+    (h : (Nat.blt c (Nat.add b 2) || Nat.testBit m (c - 2 - b)) = true) :
+    kindOf b (Nat.land α m) c = kindOf b α c := by
+  match c with
+  | 0 => rfl
+  | 1 => rfl
+  | j + 2 =>
+    by_cases hj : j < b
+    · rw [kindOf_low hj, kindOf_low hj]
+    · have hlt : Nat.blt (j + 2) (Nat.add b 2) = false := by
+        rw [Bool.eq_false_iff, Ne, Nat.blt_eq]
+        change ¬ j + 2 < b + 2
+        omega
+      rw [hlt, Bool.false_or] at h
+      have h' : m.testBit (j - b) = true := by simpa using h
+      rw [kindOf_high hj, kindOf_high hj]
+      change (if (α &&& m).testBit (j - b) = true then 1 else 0) = _
+      rw [Nat.testBit_and, h', Bool.and_true]
+
+theorem map_kindOf_land {b α m : ℕ} {row : List ℕ} (h : covers b m row = true) :
+    row.map (kindOf b (Nat.land α m)) = row.map (kindOf b α) := by
+  apply List.map_congr_left
+  intro c hc
+  exact kindOf_land (List.all_eq_true.mp h c hc)
+
+/-- Equality of lists of numbers, as a Boolean. -/
+def listBeq : List ℕ → List ℕ → Bool
+  | [], [] => true
+  | x :: xs, y :: ys => Nat.beq x y && listBeq xs ys
+  | _, _ => false
+
+theorem listBeq_eq : ∀ {l₁ l₂ : List ℕ}, listBeq l₁ l₂ = true → l₁ = l₂
+  | [], [], _ => rfl
+  | x :: xs, y :: ys, h => by
+    rw [listBeq, Bool.and_eq_true, Nat.beq_eq] at h
+    rw [h.1, listBeq_eq h.2]
+  | [], _ :: _, h => by simp [listBeq] at h
+  | _ :: _, [], h => by simp [listBeq] at h
+
+namespace Problem
+
+variable (P : Problem)
+
+/-- The left side of the condition of the quadruple with code `x`, the high variables being `r`. -/
+noncomputable def dotRL (b x r : ℕ) : ℕ :=
+  dotD (top b) b
+    (rowAt (krowsOf b r P.cls) (cvN P.s (Nat.mod (Nat.div (Nat.div (Nat.div x P.k) P.k) P.k) P.k))
+      (Nat.mod x P.k))
+    (rowAt (krowsOf b r P.cls) (Nat.mod (Nat.div (Nat.div x P.k) P.k) P.k)
+      (Nat.mod (Nat.div x P.k) P.k)) 0
+
+/-- The right side of the condition of the quadruple with code `x`, the high variables being
+`r`. -/
+noncomputable def dotRR (b x r : ℕ) : ℕ :=
+  dotD (top b) b
+    (rowAt (krowsOf b r P.cls) (Nat.mod (Nat.div (Nat.div (Nat.div x P.k) P.k) P.k) P.k)
+      (Nat.mod (Nat.div (Nat.div x P.k) P.k) P.k))
+    (rowAt (krowsOf b r P.cls) (Nat.mod x P.k) (cvN P.s (Nat.mod (Nat.div x P.k) P.k))) 0
+
+theorem quadD_eq_dotR (b α x bad : ℕ) :
+    P.quadD (top b) (ones b) b (krowsOf b α P.cls) x bad =
+      badS bad (neqS (top b) (ones b) (P.dotRL b x α) (P.dotRR b x α)) := rfl
+
+/-- The masks of an entry `(x, m₁, m₂)` select the high variables of the two sides of `x`. -/
+noncomputable def coversQuad (b : ℕ) (e : ℕ × ℕ × ℕ) : Bool :=
+  covers b e.2.1 (nth [] (nth [] P.cls
+      (cvN P.s (Nat.mod (Nat.div (Nat.div (Nat.div e.1 P.k) P.k) P.k) P.k))) (Nat.mod e.1 P.k)) &&
+    (covers b e.2.1 (nth [] (nth [] P.cls (Nat.mod (Nat.div (Nat.div e.1 P.k) P.k) P.k))
+      (Nat.mod (Nat.div e.1 P.k) P.k)) &&
+    (covers b e.2.2 (nth [] (nth [] P.cls
+      (Nat.mod (Nat.div (Nat.div (Nat.div e.1 P.k) P.k) P.k) P.k))
+      (Nat.mod (Nat.div (Nat.div e.1 P.k) P.k) P.k)) &&
+    covers b e.2.2 (nth [] (nth [] P.cls (Nat.mod e.1 P.k))
+      (cvN P.s (Nat.mod (Nat.div e.1 P.k) P.k)))))
+
+variable {P}
+
+theorem dotR_land {b α : ℕ} {e : ℕ × ℕ × ℕ} (h : P.coversQuad b e = true) :
+    P.dotRL b e.1 (Nat.land α e.2.1) = P.dotRL b e.1 α ∧
+      P.dotRR b e.1 (Nat.land α e.2.2) = P.dotRR b e.1 α := by
+  simp only [coversQuad, Bool.and_eq_true] at h
+  obtain ⟨h1, h2, h3, h4⟩ := h
+  constructor
+  · unfold dotRL
+    rw [rowAt_krowsOf, rowAt_krowsOf, rowAt_krowsOf, rowAt_krowsOf, map_kindOf_land h1,
+      map_kindOf_land h2]
+  · unfold dotRR
+    rw [rowAt_krowsOf, rowAt_krowsOf, rowAt_krowsOf, rowAt_krowsOf, map_kindOf_land h3,
+      map_kindOf_land h4]
+
+variable (P)
+
+/-- Accumulate the violations of a block of quadruples `(x, m₁, m₂)`. -/
+noncomputable def blockK (b on α : ℕ) (blk : List (ℕ × ℕ × ℕ)) : ℕ → (ℕ → ℕ) → ℕ :=
+  List.rec (motive := fun _ => ℕ → (ℕ → ℕ) → ℕ) (fun acc k => k acc)
+    (fun e _ ih acc k =>
+      forceK (Nat.land α e.2.1) fun r₁ => forceK (Nat.land α e.2.2) fun r₂ =>
+        ih (badS acc (neqS (top b) on (P.dotRL b e.1 r₁) (P.dotRR b e.1 r₂))) k) blk
+
+/-- The value passed on by `blockK`. -/
+noncomputable def blockD (b on α : ℕ) (blk : List (ℕ × ℕ × ℕ)) (acc : ℕ) : ℕ :=
+  P.blockK b on α blk acc id
+
+theorem blockK_cons (b on α : ℕ) (e : ℕ × ℕ × ℕ) (blk : List (ℕ × ℕ × ℕ)) (acc : ℕ)
+    (k : ℕ → ℕ) : P.blockK b on α (e :: blk) acc k =
+      forceK (Nat.land α e.2.1) fun r₁ => forceK (Nat.land α e.2.2) fun r₂ =>
+        P.blockK b on α blk
+          (badS acc (neqS (top b) on (P.dotRL b e.1 r₁) (P.dotRR b e.1 r₂))) k := rfl
+
+theorem blockK_eq (b on α : ℕ) (blk : List (ℕ × ℕ × ℕ)) (acc : ℕ) (k : ℕ → ℕ) :
+    P.blockK b on α blk acc k = k (P.blockD b on α blk acc) := by
+  induction blk generalizing acc k with
+  | nil => rfl
+  | cons e blk ih =>
+    unfold blockD
+    rw [blockK_cons, blockK_cons, forceK_eq, forceK_eq, forceK_eq, forceK_eq, ih, ih _ id]
+    rfl
+
+theorem blockD_nil (b on α acc : ℕ) : P.blockD b on α [] acc = acc := rfl
+
+theorem blockD_cons (b on α : ℕ) (e : ℕ × ℕ × ℕ) (blk : List (ℕ × ℕ × ℕ)) (acc : ℕ) :
+    P.blockD b on α (e :: blk) acc = P.blockD b on α blk (badS acc (neqS (top b) on
+      (P.dotRL b e.1 (Nat.land α e.2.1)) (P.dotRR b e.1 (Nat.land α e.2.2)))) := by
+  unfold blockD
+  rw [blockK_cons, forceK_eq, forceK_eq]
+
+/-- Accumulate the violations of all blocks, stopping once every assignment is violated. -/
+noncomputable def evalB (b on α : ℕ) (qm : List (List (ℕ × ℕ × ℕ))) : ℕ → (ℕ → ℕ) → ℕ :=
+  List.rec (motive := fun _ => ℕ → (ℕ → ℕ) → ℕ) (fun bad k => k bad)
+    (fun blk _ ih bad k => bif Nat.beq bad on then k on
+      else P.blockK b on α blk 0 (fun v => ih (badS bad v) k)) qm
+
+/-- The value passed on by `evalB`. -/
+noncomputable def evalBD (b on α : ℕ) (qm : List (List (ℕ × ℕ × ℕ))) (bad : ℕ) : ℕ :=
+  P.evalB b on α qm bad id
+
+theorem evalB_cons (b on α : ℕ) (blk : List (ℕ × ℕ × ℕ)) (qm : List (List (ℕ × ℕ × ℕ)))
+    (bad : ℕ) (k : ℕ → ℕ) : P.evalB b on α (blk :: qm) bad k =
+      bif Nat.beq bad on then k on
+      else P.blockK b on α blk 0 (fun v => P.evalB b on α qm (badS bad v) k) := rfl
+
+theorem evalB_eq (b on α : ℕ) (qm : List (List (ℕ × ℕ × ℕ))) (bad : ℕ) (k : ℕ → ℕ) :
+    P.evalB b on α qm bad k = k (P.evalBD b on α qm bad) := by
+  induction qm generalizing bad k with
+  | nil => rfl
+  | cons blk qm ih =>
+    unfold evalBD
+    rw [evalB_cons, evalB_cons]
+    cases Nat.beq bad on
+    · simp only [Bool.cond_false]
+      rw [blockK_eq, blockK_eq, ih, ih _ id]
+      rfl
+    · rfl
+
+theorem evalBD_nil (b on α bad : ℕ) : P.evalBD b on α [] bad = bad := rfl
+
+theorem evalBD_cons (b on α : ℕ) (blk : List (ℕ × ℕ × ℕ)) (qm : List (List (ℕ × ℕ × ℕ)))
+    (bad : ℕ) : P.evalBD b on α (blk :: qm) bad =
+      bif Nat.beq bad on then on
+      else P.evalBD b on α qm (badS bad (P.blockD b on α blk 0)) := by
+  unfold evalBD
+  rw [evalB_cons]
+  cases Nat.beq bad on
+  · simp only [Bool.cond_false]
+    rw [blockK_eq, evalB_eq]
+  · rfl
+
+/-- The certificate for the memoised evaluation: the blocks `qm` list the quadruples of the
+problem, each with masks selecting the high variables of its two sides. -/
+noncomputable def checkQM (b : ℕ) (qm : List (List (ℕ × ℕ × ℕ))) : Bool :=
+  listBeq (qm.flatten.map Prod.fst) P.quads && qm.all fun blk => blk.all (P.coversQuad b)
+
+variable {P}
+
+theorem blockD_spec (hrows : P.checkRows = true) {b α β : ℕ} (hβ : β < 2 ^ b)
+    (blk : List (ℕ × ℕ × ℕ)) (hblk : blk.all (P.coversQuad b) = true) {acc : ℕ}
+    (hacc : acc < top b) :
+    P.blockD b (ones b) α blk acc < top b ∧
+      (P.blockD b (ones b) α blk acc).testBit β =
+        (acc.testBit β || blk.any fun e => !P.quadAt (joinN b α β) e.1) := by
+  induction blk generalizing acc with
+  | nil => exact ⟨hacc, by rw [blockD_nil]; simp⟩
+  | cons e blk ih =>
+    rw [List.all_cons, Bool.and_eq_true] at hblk
+    obtain ⟨e1, e2⟩ := dotR_land (α := α) hblk.1
+    rw [blockD_cons, e1, e2, ← quadD_eq_dotR]
+    obtain ⟨hq1, hq2⟩ := quadD_spec hrows (α := α) hβ e.1 hacc
+    obtain ⟨h1, h2⟩ := ih hblk.2 hq1
+    refine ⟨h1, ?_⟩
+    rw [h2, hq2, List.any_cons, Bool.or_assoc]
+
+theorem evalBD_spec (hrows : P.checkRows = true) {b α β : ℕ} (hβ : β < 2 ^ b)
+    (qm : List (List (ℕ × ℕ × ℕ))) (hqm : (qm.all fun blk => blk.all (P.coversQuad b)) = true)
+    {bad : ℕ} (hbad : bad < top b) :
+    P.evalBD b (ones b) α qm bad < top b ∧
+      (P.evalBD b (ones b) α qm bad).testBit β =
+        (bad.testBit β || (qm.flatten.map Prod.fst).any fun x => !P.quadAt (joinN b α β) x) := by
+  induction qm generalizing bad with
+  | nil => exact ⟨hbad, by rw [evalBD_nil]; simp⟩
+  | cons blk qm ih =>
+    rw [List.all_cons, Bool.and_eq_true] at hqm
+    rw [evalBD_cons]
+    by_cases hon : bad = ones b
+    · rw [beq_true hon]
+      simp only [Bool.cond_true]
+      rw [hon, testBit_ones]
+      exact ⟨ones_lt_top b, by simp [hβ]⟩
+    · rw [beq_false hon]
+      simp only [Bool.cond_false]
+      obtain ⟨hb1, hb2⟩ := blockD_spec hrows (α := α) hβ blk hqm.1 (top_pos b)
+      obtain ⟨hs1, hs2⟩ := badS_spec hbad hb1 β
+      obtain ⟨h1, h2⟩ := ih hqm.2 hs1
+      refine ⟨h1, ?_⟩
+      rw [h2, hs2, hb2, List.flatten_cons, List.map_append, List.any_append]
+      simp only [List.any_map, Nat.zero_testBit, Bool.false_or, Bool.or_assoc]
+      rfl
+
+variable (P)
+
+/-- The number of models whose high variables are given by `α`, computed with memoised
+residuals. -/
+noncomputable def leafR (b : ℕ) (qm : List (List (ℕ × ℕ × ℕ))) (α : ℕ) : ℕ :=
+  P.evalB b (ones b) α qm 0 fun bad => popcount b (Nat.xor (ones b) bad)
+
+variable {P}
+
+theorem leafR_eq_leaf (hrows : P.checkRows = true) {b : ℕ} {qm : List (List (ℕ × ℕ × ℕ))}
+    (hqm : P.checkQM b qm = true) {α : ℕ} (hα : α < 2 ^ (P.V - b)) :
+    P.leafR b qm α = P.leaf b α := by
+  rw [checkQM, Bool.and_eq_true] at hqm
+  have hquads := listBeq_eq hqm.1
+  have hbad : ∀ β < 2 ^ b, _ := fun β hβ =>
+    evalBD_spec hrows (α := α) hβ qm hqm.2 (top_pos b)
+  have h0 := (hbad 0 (Nat.pow_pos (by decide))).1
+  rw [leaf_eq hrows hα, leafR, evalB_eq]
+  refine popcount_eq_card_filter_fun (xor_lt (ones_lt b) h0) (fun w => P.phi (join b α w)) ?_
+  intro β hβ
+  rw [testBit_xor, testBit_ones, (hbad β hβ).2, hquads, join_testBit, phi]
+  simp only [hβ, decide_true, Nat.zero_testBit, Bool.false_or, Bool.true_xor]
+  rw [Bool.eq_iff_iff]
+  simp [List.all_eq_true]
+
+/-- Check the values of a list of leaves `(α, value)` with the memoised evaluator. -/
+noncomputable def checkLeavesR (P : Problem) (b : ℕ) (qm : List (List (ℕ × ℕ × ℕ))) :
+    List (ℕ × ℕ) → Bool
+  | [] => true
+  | e :: es =>
+    Nat.blt e.1 (2 ^ (P.V - b)) && (Nat.beq (P.leafR b qm e.1) e.2 && checkLeavesR P b qm es)
+
+theorem checkLeavesR_spec (hrows : P.checkRows = true) {b : ℕ} {qm : List (List (ℕ × ℕ × ℕ))}
+    (hqm : P.checkQM b qm = true) :
+    ∀ {live : List (ℕ × ℕ)}, P.checkLeavesR b qm live = true → LiveProofs P b live
+  | [], _ => trivial
+  | e :: es, h => by
+    rw [checkLeavesR, Bool.and_eq_true, Bool.and_eq_true, Nat.blt_eq, Nat.beq_eq] at h
+    exact ⟨(leafR_eq_leaf hrows hqm h.1).symm.trans h.2.1, checkLeavesR_spec hrows hqm h.2.2⟩
+
 /-- Check the values of a list of leaves `(α, value)`. -/
 noncomputable def checkLeaves (P : Problem) (b : ℕ) : List (ℕ × ℕ) → Bool
   | [] => true

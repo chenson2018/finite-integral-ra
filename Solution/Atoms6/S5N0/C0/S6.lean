@@ -34,7 +34,7 @@ def ev : List ℕ :=
 def live : List (ℕ × ℕ) :=
   [(3729, 373), (3731, 424), (3735, 537), (3743, 793), (3744, 394), (3745, 619), (3746, 403), (3747, 627), (3750, 411), (3751, 635), (3752, 445), (3753, 700), (3754, 469), (3755, 736), (3758, 513), (3759, 799), (3760, 504), (3761, 877), (3762, 517), (3763, 895), (3766, 529), (3767, 913), (3768, 576), (3769, 1009), (3770, 612), (3771, 1074), (3774, 664), (3775, 1178), (3808, 2620), (3809, 5113), (3810, 2993), (3811, 5876), (3812, 2980), (3813, 5723), (3814, 3591), (3815, 6889), (3820, 3526), (3821, 6603), (3822, 4384), (3823, 8197)]
 
-theorem leavesOK : P.checkLeaves 20 live = true := by decide +kernel
+theorem leavesOK : P.checkLeavesR 20 qm live = true := by decide +kernel
 
 theorem segOK : checkSeg 15 perms 3729 3824 seg = true := by decide +kernel
 
@@ -42,7 +42,7 @@ theorem evOK : P.checkEv 20 seg ev live 0 5987090 = true := by decide +kernel
 
 theorem total : OrbitSeg 15 perms (P.leaf 20) 3729 3824 2960 5987090 :=
   OrbitSeg.of_check segOK (by decide +kernel)
-    (checkEv_sum check rows evOK (checkLeaves_spec rows leavesOK))
+    (checkEv_sum check rows evOK (checkLeavesR_spec rows qmOK leavesOK))
 
 end S6
 

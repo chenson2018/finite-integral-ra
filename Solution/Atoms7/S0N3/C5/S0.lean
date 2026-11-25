@@ -24,25 +24,25 @@ namespace S0
 
 /-- Orbit minima `(α, orbit size)` in this segment. -/
 def seg : List (ℕ × ℕ) :=
-  [(0, 1), (1, 6), (3, 3), (5, 3), (6, 6), (7, 6), (12, 3), (13, 6), (15, 3), (19, 6), (23, 3), (25, 2), (27, 6), (30, 3), (31, 6), (63, 1), (64, 4), (65, 24), (67, 12), (69, 12), (70, 24), (71, 24), (76, 12), (77, 24), (79, 12), (83, 24), (87, 12), (89, 8), (91, 24), (94, 12), (95, 24), (127, 4), (192, 6), (193, 12), (194, 12), (195, 12), (197, 6), (198, 12), (199, 12), (200, 12)]
+  [(0, 1), (1, 3), (3, 3), (7, 1), (8, 4), (9, 12), (11, 12), (15, 4), (24, 6), (25, 12), (27, 6), (28, 6), (29, 12), (31, 6), (56, 4), (57, 12), (59, 12), (63, 4), (120, 1), (121, 3), (123, 3), (127, 1)]
 
 /-- Evidence: `0` for a leaf evaluated below, `x + 1` for a leaf killed by the quadruple `x`. -/
 def ev : List ℕ :=
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 /-- The evaluated leaves `(α, value)`. -/
 def live : List (ℕ × ℕ) :=
-  [(0, 0), (1, 0), (3, 6), (5, 0), (6, 0), (7, 0), (12, 22), (13, 0), (15, 0), (19, 375), (23, 721), (25, 8), (27, 56), (30, 910), (31, 540), (63, 10936), (64, 2), (65, 0), (67, 0), (69, 0), (70, 0), (71, 0), (76, 3), (77, 0), (79, 0), (83, 0), (87, 17), (89, 8), (91, 136), (94, 201), (95, 1794), (127, 19606), (192, 0), (193, 0), (194, 0), (195, 0), (197, 0), (198, 0), (199, 0), (200, 0)]
+  [(0, 3218), (1, 2778), (3, 2571), (7, 2490), (8, 3733), (9, 3810), (11, 4078), (15, 4470), (24, 12968), (25, 15164), (27, 18045), (28, 12956), (29, 15959), (31, 19643), (56, 36874), (57, 45172), (59, 56696), (63, 71648), (120, 122802), (121, 178147), (123, 245819), (127, 331798)]
 
-theorem leavesOK : P.checkLeaves 18 live = true := by decide +kernel
+theorem leavesOK : P.checkLeavesR 21 qm live = true := by decide +kernel
 
-theorem segOK : checkSeg 10 perms 0 201 seg = true := by decide +kernel
+theorem segOK : checkSeg 7 perms 0 128 seg = true := by decide +kernel
 
-theorem evOK : P.checkEv 18 seg ev live 0 149223 = true := by decide +kernel
+theorem evOK : P.checkEv 21 seg ev live 0 4287373 = true := by decide +kernel
 
-theorem total : OrbitSeg 10 perms (P.leaf 18) 0 201 404 149223 :=
+theorem total : OrbitSeg 7 perms (P.leaf 21) 0 128 128 4287373 :=
   OrbitSeg.of_check segOK (by decide +kernel)
-    (checkEv_sum check rows evOK (checkLeaves_spec rows leavesOK))
+    (checkEv_sum check rows evOK (checkLeavesR_spec rows qmOK leavesOK))
 
 end S0
 

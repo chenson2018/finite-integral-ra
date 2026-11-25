@@ -501,9 +501,15 @@ pub fn symplan(s: usize, n: usize, bmax: usize) {
 
 use crate::symm::{all_reps, centralizer, choose_low, BitGroup, Rep};
 
-/// Maximal number of live leaves and of orbit minima in one segment file.
-const SEG_LIVE: usize = 40;
-const SEG_REPS: usize = 1500;
+/// Maximal number of orbit minima in one segment file.
+const SEG_REPS: usize = 4000;
+
+/// Maximal number of evaluated leaves in one segment: the big-number results of one declaration
+/// are all retained by the kernel, about 95 per leaf, and should stay around one gigabyte.
+fn seg_live(b: usize) -> usize {
+    let per_leaf = 95.0 * (1u64 << b) as f64 / 8.0;
+    ((1.2e9 / per_leaf) as usize).clamp(4, 256)
+}
 
 fn pairs(v: &[(Vec<usize>, Vec<usize>)]) -> String {
     let items: Vec<String> = v.iter().map(|(p, q)| format!("({}, {})", list(p), list(q))).collect();
@@ -575,7 +581,8 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
     let (s, n) = (sys.s, sys.n);
     let (roots, b) = choose_low(sys, rep, hs, bmax);
     let order = move |_p: &Problem, _r: Vec<usize>| roots.clone();
-    let p = Problem::new(sys, rep, &order);
+    let mut p = Problem::new(sys, rep, &order);
+    let qm = p.order_quads(b, 8);
     let grp = BitGroup::new(&p, b, hs);
     let t = grp.t;
     let t0 = std::time::Instant::now();
@@ -619,6 +626,9 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
     let gens: Vec<String> = grp.gens().iter().map(|(g, r)| format!("({}, {})", g, list(r))).collect();
     writeln!(d, "/-- Generators of `perms` with their rows of the multiplication table. -/\ndef gens : List (ℕ × List ℕ) :=\n  [{}]\n", gens.join(",\n   ")).unwrap();
     writeln!(d, "/-- Inverses in `perms`. -/\ndef inv : List ℕ := {}\n", list(&grp.inv)).unwrap();
+    let qm_s: Vec<String> = qm.iter().map(|blk| format!("[{}]", blk.iter().map(|(x, m1, m2)| format!("({}, {}, {})", x, m1, m2)).collect::<Vec<_>>().join(", "))).collect();
+    writeln!(d, "/-- The quadruples in blocks, with the masks of the high variables of their two sides. -/\ndef qm : List (List (ℕ × ℕ × ℕ)) :=\n  [{}]\n", qm_s.join(",\n   ")).unwrap();
+    writeln!(d, "theorem qmOK : P.checkQM {} qm = true := by decide +kernel\n", b).unwrap();
     writeln!(d, "theorem symsOK : P.checkSyms {} syms perms = true := by decide +kernel\n", b).unwrap();
     writeln!(d, "theorem grpOK : checkBitGroup {} perms gens inv = true := by decide +kernel\n", t).unwrap();
     writeln!(d, "end {}", cls_ns).unwrap();
@@ -628,7 +638,7 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
     let mut cur: Vec<&Rep> = vec![];
     let mut cur_live = 0;
     for r in &reps {
-        if cur.len() >= SEG_REPS || (cur_live >= SEG_LIVE && r.dead.is_none()) {
+        if cur.len() >= SEG_REPS || (cur_live >= seg_live(b) && r.dead.is_none()) {
             segs.push(std::mem::take(&mut cur));
             cur_live = 0;
         }
@@ -657,8 +667,8 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
         writeln!(c, "/-- Orbit minima `(α, orbit size)` in this segment. -/\ndef seg : List (ℕ × ℕ) :=\n  [{}]\n", seg_s.join(", ")).unwrap();
         writeln!(c, "/-- Evidence: `0` for a leaf evaluated below, `x + 1` for a leaf killed by the quadruple `x`. -/\ndef ev : List ℕ :=\n  [{}]\n", ev_s.join(", ")).unwrap();
         writeln!(c, "/-- The evaluated leaves `(α, value)`. -/\ndef live : List (ℕ × ℕ) :=\n  [{}]\n", live_s.join(", ")).unwrap();
-        writeln!(c, "theorem leavesOK : P.checkLeaves {} live = true := by decide +kernel\n", b).unwrap();
-        let lp = String::from("checkLeaves_spec rows leavesOK");
+        writeln!(c, "theorem leavesOK : P.checkLeavesR {} qm live = true := by decide +kernel\n", b).unwrap();
+        let lp = String::from("checkLeavesR_spec rows qmOK leavesOK");
         writeln!(c, "theorem segOK : checkSeg {} perms {} {} seg = true := by decide +kernel\n", t, lo, hi).unwrap();
         writeln!(c, "theorem evOK : P.checkEv {} seg ev live 0 {} = true := by decide +kernel\n", b, w).unwrap();
         writeln!(
