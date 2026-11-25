@@ -14,6 +14,7 @@ public import Solution.Atoms3.S2N0.C1
 
 set_option linter.style.longLine false
 set_option maxRecDepth 100000
+set_option Elab.async false
 
 @[expose] public section
 

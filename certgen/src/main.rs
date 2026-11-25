@@ -58,6 +58,7 @@ fn main() {
     let s: usize = args[2].parse().unwrap();
     let n: usize = args[3].parse().unwrap();
     let root = PathBuf::from(&args[4]);
-    let bmax: usize = args.get(5).map(|x| x.parse().unwrap()).unwrap_or(20);
+    // 22 is the value used for all committed certificates.
+    let bmax: usize = args.get(5).map(|x| x.parse().unwrap()).unwrap_or(22);
     lean::generate(s, n, &root, bmax);
 }

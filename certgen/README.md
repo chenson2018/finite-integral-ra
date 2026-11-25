@@ -10,9 +10,9 @@ target/release/certgen plan <s> <n> <bmin> <bmax>         # sampled estimate of 
 ```
 
 `<s>` is the number of symmetric diversity atoms, `<n>` the number of pairs of nonsymmetric atoms,
-`k = 1 + s + 2n`. `bmax` (default 20; the committed large certificates use 22) bounds the number `b` of variables
-handled by one truth table, i.e. tables have `2^b` bits. The generator is deterministic; rerunning it reproduces the
-committed files. After generating, `scripts/wire_headline.py <s> <n>` points the headline theorem
+`k = 1 + s + 2n`. `bmax` (default 22, the value used for all committed certificates) bounds the number `b` of
+variables handled by one truth table, i.e. tables have `2^b` bits. The generator is deterministic; rerunning it reproduces the
+committed files exactly, which `scripts/check-regen.sh` verifies for all types. After generating, `scripts/wire_headline.py <s> <n>` points the headline theorem
 in `Solution/Atoms<k>/Symm<s>Nsymm<n>.lean` at the certificate.
 
 ## What is proved, and how
