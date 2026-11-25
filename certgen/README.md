@@ -52,9 +52,10 @@ The Lean development (`Solution/Theory`, `Solution/Cert`) reduces
    the leaves are not all evaluated: the symmetries of the problem (the centraliser of `σ`)
    permute the high variables, leaves are constant on orbits, and only one leaf per orbit (its
    minimum, with the orbit size as weight) is needed. The certificate lists the orbit minima in
-   parts; each part is checked (`checkSeg`: minimality and orbit size of every listed
-   assignment), and the total orbit size `2^t` proves that no orbit is missing. Minima whose
-   high variables already violate a condition are discharged without a truth table (`deadR`).
+   files; the minima of a file are checked by one theorem (`checkSeg`: minimality and orbit size
+   of every listed assignment), and the total orbit size `2^t` proves that no orbit is missing.
+   Minima whose high variables already violate a condition are discharged without a truth table
+   (`deadR`).
 
 6. **Eliminated variables** (`Solution/Cert/Elim.lean`). Some variables never occur together in
    the condition of a quadruple — in practice the variables `a ≤ a ; a` of the symmetric atoms
@@ -69,8 +70,9 @@ The Lean development (`Solution/Theory`, `Solution/Cert`) reduces
    (`Solution/Cert/WPop.lean`). `checkElim` validates the classification of the conditions; a
    condition whose two sides are the same pair of rows holds trivially and is dropped.
 
-7. **Sharing between leaves** (`Solution/Cert/Elim.lean`, `Side.lean`). The weighted sum of the
-   leaves of a part is checked by one theorem (`sumEvE`), and the evaluator is written so that the
+7. **Sharing between leaves** (`Solution/Cert/Elim.lean`, `Side.lean`). A file is divided into
+   parts of a few dozen evaluated leaves; the weighted sum of the leaves of a part is checked by
+   one theorem (`sumEvE`), and the evaluator is written so that the
    kernel, which caches the value of every expression within a declaration, evaluates each
    distinct table once:
    * each side of a condition is pre-classified (`Side`: terms guarded by high variables, and
@@ -113,8 +115,9 @@ the only axioms are `propext`, `Quot.sound` and `Classical.choice`.
 
 ## Status
 
-Checking times are wall-clock on a 12-thread workstation (via `scripts/safe-run.sh`, i.e. with
-the malloc settings above), from a state where `Solution/Theory` and `Solution/Cert` are built.
+Checking times are wall-clock on a 12-thread laptop CPU (via `scripts/safe-run.sh`, i.e. with the
+malloc settings above), from a state where `Solution/Theory` and `Solution/Cert` are built.
+Checking everything below together takes 97 minutes (18 CPU-hours).
 
 | type `(s, n)` | atoms | count | certificate | check |
 |---|---|---|---|---|
@@ -124,9 +127,15 @@ the malloc settings above), from a state where `Solution/Theory` and `Solution/C
 | (1,2) (3,1) (5,0) | 6 | 47965, 988464, 3849920 | 6, 26, 29 leaves with 1, 3, 5 eliminated variables | seconds |
 | (0,3) | 7 | 4492953 | 24432 orbit minima, 5571 leaves | about half a minute |
 | (2,2) | 7 | 2186435732 | 277824 orbit minima, 65947 leaves, 2 eliminated variables | about 4 minutes |
-| (4,1) | 7 | 50265788140 | 1446336 orbit minima, 218422 leaves, 4 eliminated variables | 17 minutes |
+| (4,1) | 7 | 50265788140 | 1446336 orbit minima, 218422 leaves, 4 eliminated variables | about 15 minutes |
+| (6,0) | 7 | 292352449486 | 1540944 orbit minima, all evaluated, 6 eliminated variables | about 80 minutes |
 
-Not yet covered: `(6,0)` and `(1,3)`; consequently also the 7-atom total.
+This gives the totals for up to 7 atoms (`encard_ofAtoms_seven`: 344809166311). Not covered:
+`(1,3)`, the only type with 8 atoms in the challenge. Its identity class has 63 variables, only
+one of which can be eliminated; with tables of `2^21` bits this leaves 41 high variables, i.e.
+about `2^35` orbits of assignments under its 48 symmetries — some ten thousand times as many as
+for `(6,0)`.
+
 `certgen plan <s> <n> <bmin> <bmax>` estimates the certificate size and the single-thread
 kernel time of the identity class for the possible choices of low variables, and
 `certgen ops <s> <n> <bmax> [leaves per theorem]` simulates the sharing of big-number operations.
