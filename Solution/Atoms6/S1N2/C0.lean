@@ -21,7 +21,7 @@ namespace RACert.S1N2.C0
 
 open RACert RACert.Problem
 
-theorem total : OrbitSeg 4 perms (P.leaf 21) 0 16 16 312508 :=
+theorem total : OrbitSeg 4 perms (P.leaf (20 + 1)) 0 16 16 312508 :=
   OrbitSeg.cast (S0.total)
     (by decide +kernel) (by decide +kernel)
 

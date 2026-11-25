@@ -22,30 +22,24 @@ open RACert RACert.Problem
 
 namespace S0
 
-/-- Orbit minima `(α, orbit size)` in this segment. -/
-def seg : List (ℕ × ℕ) :=
-  [(0, 1), (1, 1), (2, 4), (3, 4), (6, 2), (7, 2), (10, 2), (11, 2), (12, 2), (13, 2), (14, 4), (15, 4), (30, 1), (31, 1)]
+/-- Orbit minima `(α, orbit size)`, part 0. -/
+def seg0 : List (ℕ × ℕ) :=
+  [(0, 1), (1, 2), (3, 1), (4, 4), (5, 8), (7, 4), (12, 2), (13, 4), (15, 2), (20, 2), (21, 4), (23, 2), (24, 2), (25, 4), (27, 2), (28, 4), (29, 8), (31, 4), (60, 1), (61, 2), (63, 1)]
 
-/-- Evidence: `0` for a leaf evaluated below, `i + 1` for a leaf killed by the `i`-th quadruple. -/
-def ev : List ℕ :=
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+/-- Evidence: `i + 1` for a leaf killed by the `i`-th quadruple of `qmFlat`, `0` (or nothing) for an
+evaluated leaf. -/
+def ev0 : List ℕ := []
 
-/-- Evaluated leaves `(α, value)`, part 0. -/
-def live0 : List (ℕ × ℕ) :=
-  [(0, 10916), (1, 12242), (2, 16259), (3, 18676), (6, 28600), (7, 33293), (10, 30942), (11, 36653), (12, 26375), (13, 30306), (14, 45601), (15, 53499), (30, 69904), (31, 81749)]
+theorem segOK0 : checkSeg 6 perms 0 64 seg0 = true := by decide +kernel
 
-theorem leavesOK0 : P.checkLeavesR 21 qm live0 = true := by decide +kernel
+theorem sumOK0 : P.sumEvE 19 1 qt ow qmFlat seg0 ev0 0 1083289 = true := by decide +kernel
 
-/-- All evaluated leaves of this segment. -/
-def live : List (ℕ × ℕ) := live0 ++ ([])
+theorem part0 : OrbitSeg 6 perms (P.leaf (19 + 1)) 0 64 64 1083289 :=
+  OrbitSeg.of_check segOK0 (by decide +kernel) (sumEvE_sum check rows elimOK flatOK sumOK0)
 
-theorem segOK : checkSeg 5 perms 0 32 seg = true := by decide +kernel
-
-theorem evOK : P.checkEvR 21 qmFlat seg ev live 0 1083289 = true := by decide +kernel
-
-theorem total : OrbitSeg 5 perms (P.leaf 21) 0 32 32 1083289 :=
-  OrbitSeg.of_check segOK (by decide +kernel)
-    (checkEvR_sum check rows flatOK evOK (.append (checkLeavesR_spec rows qmOK leavesOK0) (.nil)))
+theorem total : OrbitSeg 6 perms (P.leaf (19 + 1)) 0 64 64 1083289 :=
+  OrbitSeg.cast (part0)
+    (by decide +kernel) (by decide +kernel)
 
 end S0
 

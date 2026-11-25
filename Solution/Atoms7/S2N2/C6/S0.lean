@@ -22,30 +22,24 @@ open RACert RACert.Problem
 
 namespace S0
 
-/-- Orbit minima `(α, orbit size)` in this segment. -/
-def seg : List (ℕ × ℕ) :=
-  [(0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (12, 1), (13, 1), (14, 1), (15, 1), (16, 1), (17, 1), (18, 1), (19, 1), (20, 1), (21, 1), (22, 1), (23, 1), (24, 1), (25, 1), (26, 1), (27, 1), (28, 1), (29, 1), (30, 1), (31, 1)]
+/-- Orbit minima `(α, orbit size)`, part 0. -/
+def seg0 : List (ℕ × ℕ) :=
+  [(0, 1), (1, 1), (2, 2), (3, 2), (6, 1), (7, 1), (8, 2), (9, 2), (10, 4), (11, 4), (14, 2), (15, 2), (24, 1), (25, 1), (26, 2), (27, 2), (30, 1), (31, 1)]
 
-/-- Evidence: `0` for a leaf evaluated below, `i + 1` for a leaf killed by the `i`-th quadruple. -/
-def ev : List ℕ :=
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+/-- Evidence: `i + 1` for a leaf killed by the `i`-th quadruple of `qmFlat`, `0` (or nothing) for an
+evaluated leaf. -/
+def ev0 : List ℕ := []
 
-/-- Evaluated leaves `(α, value)`, part 0. -/
-def live0 : List (ℕ × ℕ) :=
-  [(0, 4328), (1, 4977), (2, 5844), (3, 7006), (4, 6004), (5, 6201), (6, 10298), (7, 10617), (8, 18321), (9, 22034), (10, 21961), (11, 28192), (12, 27444), (13, 29143), (14, 41768), (15, 45325), (16, 14481), (17, 17952), (18, 18427), (19, 22338), (20, 35600), (21, 37262), (22, 41994), (23, 43888), (24, 42920), (25, 54485), (26, 54341), (27, 66339), (28, 126886), (29, 141862), (30, 144969), (31, 162291)]
+theorem segOK0 : checkSeg 5 perms 0 32 seg0 = true := by decide +kernel
 
-theorem leavesOK0 : P.checkLeavesR 21 qm live0 = true := by decide +kernel
+theorem sumOK0 : P.sumEvE 20 1 qt ow qmFlat seg0 ev0 0 1315498 = true := by decide +kernel
 
-/-- All evaluated leaves of this segment. -/
-def live : List (ℕ × ℕ) := live0 ++ ([])
+theorem part0 : OrbitSeg 5 perms (P.leaf (20 + 1)) 0 32 32 1315498 :=
+  OrbitSeg.of_check segOK0 (by decide +kernel) (sumEvE_sum check rows elimOK flatOK sumOK0)
 
-theorem segOK : checkSeg 5 perms 0 32 seg = true := by decide +kernel
-
-theorem evOK : P.checkEvR 21 qmFlat seg ev live 0 1315498 = true := by decide +kernel
-
-theorem total : OrbitSeg 5 perms (P.leaf 21) 0 32 32 1315498 :=
-  OrbitSeg.of_check segOK (by decide +kernel)
-    (checkEvR_sum check rows flatOK evOK (.append (checkLeavesR_spec rows qmOK leavesOK0) (.nil)))
+theorem total : OrbitSeg 5 perms (P.leaf (20 + 1)) 0 32 32 1315498 :=
+  OrbitSeg.cast (part0)
+    (by decide +kernel) (by decide +kernel)
 
 end S0
 

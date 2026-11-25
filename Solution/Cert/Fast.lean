@@ -527,12 +527,11 @@ noncomputable def forceK (r : ℕ) (k : ℕ → ℕ) : ℕ :=
 theorem forceK_eq (r : ℕ) (k : ℕ → ℕ) : forceK r k = k r := by
   cases r <;> rfl
 
-/-- Every high variable in `row` is selected by the mask `m`. -/
-noncomputable def covers (b m : ℕ) (row : List ℕ) : Bool :=
-  row.all fun c => Nat.blt c (Nat.add b 2) || Nat.testBit m (Nat.sub (Nat.sub c 2) b)
+/-- The class code `c` is not a high variable outside the mask `m`. -/
+def cov (b m c : ℕ) : Bool :=
+  Nat.blt c (Nat.add b 2) || Nat.testBit m (Nat.sub (Nat.sub c 2) b)
 
-theorem kindOf_land {b α m c : ℕ}
-    (h : (Nat.blt c (Nat.add b 2) || Nat.testBit m (c - 2 - b)) = true) :
+theorem kindOf_land {b α m c : ℕ} (h : cov b m c = true) :
     kindOf b (Nat.land α m) c = kindOf b α c := by
   match c with
   | 0 => rfl
@@ -544,17 +543,93 @@ theorem kindOf_land {b α m c : ℕ}
         rw [Bool.eq_false_iff, Ne, Nat.blt_eq]
         change ¬ j + 2 < b + 2
         omega
-      rw [hlt, Bool.false_or] at h
+      rw [cov, hlt, Bool.false_or] at h
       have h' : m.testBit (j - b) = true := by simpa using h
       rw [kindOf_high hj, kindOf_high hj]
       change (if (α &&& m).testBit (j - b) = true then 1 else 0) = _
       rw [Nat.testBit_and, h', Bool.and_true]
 
-theorem map_kindOf_land {b α m : ℕ} {row : List ℕ} (h : covers b m row = true) :
-    row.map (kindOf b (Nat.land α m)) = row.map (kindOf b α) := by
-  apply List.map_congr_left
-  intro c hc
-  exact kindOf_land (List.all_eq_true.mp h c hc)
+/-- Some term of the disjunction of conjunctions of two rows is constant true. -/
+def hasTop : List ℕ → List ℕ → Bool
+  | x :: xs, y :: ys => (Nat.beq x 1 && Nat.beq y 1) || hasTop xs ys
+  | _, _ => false
+
+/-- Every term of the disjunction of conjunctions of two rows has a vanishing factor, or only
+involves high variables selected by the mask `m`. -/
+def allCov (b m : ℕ) : List ℕ → List ℕ → Bool
+  | x :: xs, y :: ys =>
+    (Nat.beq x 0 || (Nat.beq y 0 || (cov b m x && cov b m y))) && allCov b m xs ys
+  | _, _ => true
+
+/-- The disjunction of conjunctions of two rows only depends on the high variables selected by
+the mask `m`. -/
+def coversDot (b m : ℕ) (r₁ r₂ : List ℕ) : Bool := hasTop r₁ r₂ || allCov b m r₁ r₂
+
+theorem dotD_top (T b : ℕ) (l₁ l₂ : List ℕ) : dotD T b l₁ l₂ T = T := by
+  induction l₁ generalizing l₂ with
+  | nil => rfl
+  | cons x xs ih =>
+    cases l₂ with
+    | nil => rfl
+    | cons y ys => rw [dotD_cons_cons, stepD_top rfl, ih]
+
+theorem stepD_left_zero (T b y acc : ℕ) : stepD T b 0 y acc = acc := by
+  by_cases h : acc = T
+  · rw [stepD_top h, h]
+  · exact stepD_zero h y
+
+theorem stepD_right_zero (T b x acc : ℕ) : stepD T b x 0 acc = acc := by
+  by_cases h : acc = T
+  · rw [stepD_top h, h]
+  · match x with
+    | 0 => exact stepD_zero h 0
+    | 1 => exact stepD_one_zero h
+    | i + 2 => exact stepD_var_zero h i
+
+theorem stepD_one_one' (T b acc : ℕ) : stepD T b 1 1 acc = T := by
+  by_cases h : acc = T
+  · exact stepD_top h
+  · exact stepD_one_one h
+
+theorem dotD_of_hasTop {T b : ℕ} (f : ℕ → ℕ) (hf : f 1 = 1) :
+    ∀ {l₁ l₂ : List ℕ}, hasTop l₁ l₂ = true → ∀ acc, dotD T b (l₁.map f) (l₂.map f) acc = T
+  | x :: xs, y :: ys, h, acc => by
+    rw [hasTop, Bool.or_eq_true, Bool.and_eq_true, Nat.beq_eq, Nat.beq_eq] at h
+    rw [List.map_cons, List.map_cons, dotD_cons_cons]
+    rcases h with ⟨hx, hy⟩ | h
+    · rw [hx, hy, hf, stepD_one_one', dotD_top]
+    · exact dotD_of_hasTop f hf h _
+  | [], _, h, _ => by simp [hasTop] at h
+  | _ :: _, [], h, _ => by simp [hasTop] at h
+
+theorem dotD_of_allCov {T b m α : ℕ} :
+    ∀ {l₁ l₂ : List ℕ}, allCov b m l₁ l₂ = true → ∀ acc,
+      dotD T b (l₁.map (kindOf b (Nat.land α m))) (l₂.map (kindOf b (Nat.land α m))) acc =
+        dotD T b (l₁.map (kindOf b α)) (l₂.map (kindOf b α)) acc
+  | x :: xs, y :: ys, h, acc => by
+    rw [allCov, Bool.and_eq_true, Bool.or_eq_true, Bool.or_eq_true, Bool.and_eq_true, Nat.beq_eq,
+      Nat.beq_eq] at h
+    rw [List.map_cons, List.map_cons, List.map_cons, List.map_cons, dotD_cons_cons, dotD_cons_cons]
+    have hs : stepD T b (kindOf b (Nat.land α m) x) (kindOf b (Nat.land α m) y) acc =
+        stepD T b (kindOf b α x) (kindOf b α y) acc := by
+      rcases h.1 with hx | hy | ⟨hx, hy⟩
+      · rw [hx]
+        exact (stepD_left_zero _ _ _ _).trans (stepD_left_zero _ _ _ _).symm
+      · rw [hy]
+        exact (stepD_right_zero _ _ _ _).trans (stepD_right_zero _ _ _ _).symm
+      · rw [kindOf_land hx, kindOf_land hy]
+    rw [hs]
+    exact dotD_of_allCov h.2 _
+  | [], _, _, _ => rfl
+  | _ :: _, [], _, _ => rfl
+
+theorem dotD_land {b m α : ℕ} {l₁ l₂ : List ℕ} (h : coversDot b m l₁ l₂ = true) (acc : ℕ) :
+    dotD (top b) b (l₁.map (kindOf b (Nat.land α m))) (l₂.map (kindOf b (Nat.land α m))) acc =
+      dotD (top b) b (l₁.map (kindOf b α)) (l₂.map (kindOf b α)) acc := by
+  rw [coversDot, Bool.or_eq_true] at h
+  rcases h with h | h
+  · rw [dotD_of_hasTop _ rfl h, dotD_of_hasTop _ rfl h]
+  · exact dotD_of_allCov h acc
 
 /-- Equality of lists of numbers, as a Boolean. -/
 def listBeq : List ℕ → List ℕ → Bool
@@ -602,32 +677,32 @@ theorem quadD_eq_dotR (b α x bad : ℕ) :
     P.quadD (top b) (ones b) b (krowsOf b α P.cls) x bad =
       badS bad (neqS (top b) (ones b) (P.dotRL b x α) (P.dotRR b x α)) := rfl
 
-/-- The masks of an entry `(x, m₁, m₂)` select the high variables of the two sides of `x`. -/
+/-- The masks of an entry `(x, m₁, m₂)` select the high variables on which the two sides of the
+condition of `x` depend. -/
 noncomputable def coversQuad (b : ℕ) (e : ℕ × ℕ × ℕ) : Bool :=
-  covers b e.2.1 (nth [] (nth [] P.cls
-      (cvN P.s (Nat.mod (Nat.div (Nat.div (Nat.div e.1 P.k) P.k) P.k) P.k))) (Nat.mod e.1 P.k)) &&
-    (covers b e.2.1 (nth [] (nth [] P.cls (Nat.mod (Nat.div (Nat.div e.1 P.k) P.k) P.k))
-      (Nat.mod (Nat.div e.1 P.k) P.k)) &&
-    (covers b e.2.2 (nth [] (nth [] P.cls
-      (Nat.mod (Nat.div (Nat.div (Nat.div e.1 P.k) P.k) P.k) P.k))
-      (Nat.mod (Nat.div (Nat.div e.1 P.k) P.k) P.k)) &&
-    covers b e.2.2 (nth [] (nth [] P.cls (Nat.mod e.1 P.k))
-      (cvN P.s (Nat.mod (Nat.div e.1 P.k) P.k)))))
+  coversDot b e.2.1
+      (nth [] (nth [] P.cls
+        (cvN P.s (Nat.mod (Nat.div (Nat.div (Nat.div e.1 P.k) P.k) P.k) P.k))) (Nat.mod e.1 P.k))
+      (nth [] (nth [] P.cls (Nat.mod (Nat.div (Nat.div e.1 P.k) P.k) P.k))
+        (Nat.mod (Nat.div e.1 P.k) P.k)) &&
+    coversDot b e.2.2
+      (nth [] (nth [] P.cls (Nat.mod (Nat.div (Nat.div (Nat.div e.1 P.k) P.k) P.k) P.k))
+        (Nat.mod (Nat.div (Nat.div e.1 P.k) P.k) P.k))
+      (nth [] (nth [] P.cls (Nat.mod e.1 P.k)) (cvN P.s (Nat.mod (Nat.div e.1 P.k) P.k)))
 
 variable {P}
 
 theorem dotR_land {b α : ℕ} {e : ℕ × ℕ × ℕ} (h : P.coversQuad b e = true) :
     P.dotRL b e.1 (Nat.land α e.2.1) = P.dotRL b e.1 α ∧
       P.dotRR b e.1 (Nat.land α e.2.2) = P.dotRR b e.1 α := by
-  simp only [coversQuad, Bool.and_eq_true] at h
-  obtain ⟨h1, h2, h3, h4⟩ := h
+  rw [coversQuad, Bool.and_eq_true] at h
   constructor
   · unfold dotRL
-    rw [rowAt_krowsOf, rowAt_krowsOf, rowAt_krowsOf, rowAt_krowsOf, map_kindOf_land h1,
-      map_kindOf_land h2]
+    rw [rowAt_krowsOf, rowAt_krowsOf, rowAt_krowsOf, rowAt_krowsOf]
+    exact dotD_land h.1 0
   · unfold dotRR
-    rw [rowAt_krowsOf, rowAt_krowsOf, rowAt_krowsOf, rowAt_krowsOf, map_kindOf_land h3,
-      map_kindOf_land h4]
+    rw [rowAt_krowsOf, rowAt_krowsOf, rowAt_krowsOf, rowAt_krowsOf]
+    exact dotD_land h.2 0
 
 variable (P)
 

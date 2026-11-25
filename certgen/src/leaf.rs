@@ -127,109 +127,6 @@ pub fn all_leaves(p: &Problem, b: usize) -> Vec<u64> {
     out
 }
 
-/// Operation counts of one leaf as evaluated by the kernel (distinct big-number operations):
-/// (ands, ors, xors, bad-ors, quads with equal non-constant sides).
-pub fn op_counts(ev: &Evaluator, alpha: u64) -> (usize, usize, usize, usize, usize) {
-    use std::collections::HashSet;
-    let p = ev.p;
-    let b = ev.b;
-    // 0 false, 1 true, 2 table
-    let kind = |code: usize| -> u8 {
-        match code {
-            0 => 0,
-            1 => 1,
-            c => { let j = c - 2; if j < b { 2 } else { ((alpha >> (j - b)) & 1) as u8 } }
-        }
-    };
-    let mut ands: HashSet<(usize, usize)> = HashSet::new();
-    let (mut ors, mut xors, mut bors, mut eqs) = (0, 0, 0, 0);
-    // returns (constant?, canonical description)
-    let dot = |terms: &[(usize, usize)], ands: &mut HashSet<(usize, usize)>, ors: &mut usize| -> (u8, Vec<(usize, usize)>) {
-        let mut desc: Vec<(usize, usize)> = vec![];
-        let mut acc_real = false;
-        for &(i, j) in terms {
-            let (x, y) = (kind(i), kind(j));
-            if x == 0 || y == 0 { continue; }
-            if x == 1 && y == 1 { return (1, vec![]); }
-            if x == 2 && y == 2 { ands.insert((i, j)); desc.push((i.min(j), i.max(j))); }
-            else if x == 2 { desc.push((i, i)); } else { desc.push((j, j)); }
-            if acc_real { *ors += 1; }
-            acc_real = true;
-        }
-        if desc.is_empty() { (0, desc) } else { desc.sort(); desc.dedup(); (2, desc) }
-    };
-    for (l, r) in &ev.terms {
-        let (kl, dl) = dot(l, &mut ands, &mut ors);
-        let (kr, dr) = dot(r, &mut ands, &mut ors);
-        if kl != 2 && kr != 2 {
-            if kl != kr { break; }
-            continue;
-        }
-        if kl == 2 && kr == 2 && dl == dr { eqs += 1; }
-        xors += 1;
-        bors += 1;
-    }
-    let _ = p;
-    (ands.len(), ors, xors, bors, eqs)
-}
-
-/// Keys of the big-number operations a "symbolic" evaluator would perform for one leaf, where
-/// every operation is identified by its canonical expression (so that equal expressions are
-/// computed once per declaration by the kernel's cache).
-pub fn op_keys(ev: &Evaluator, alpha: u64, keys: &mut std::collections::HashSet<u64>) -> usize {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let b = ev.b;
-    let kind = |code: usize| -> u8 {
-        match code {
-            0 => 0,
-            1 => 1,
-            c => { let j = c - 2; if j < b { 2 } else { ((alpha >> (j - b)) & 1) as u8 } }
-        }
-    };
-    let h2 = |tag: u8, a: u64, c: u64| -> u64 { let mut h = DefaultHasher::new(); (tag, a, c).hash(&mut h); h.finish() };
-    let mut count = 0usize;
-    // value: 0 = false, 1 = true, otherwise hash of canonical expression (>= 2)
-    let dot = |terms: &[(usize, usize)], keys: &mut std::collections::HashSet<u64>, count: &mut usize| -> u64 {
-        let mut acc: u64 = 0;
-        for &(i, j) in terms {
-            let (x, y) = (kind(i), kind(j));
-            if x == 0 || y == 0 { continue; }
-            if x == 1 && y == 1 { return 1; }
-            let term = if x == 2 && y == 2 {
-                let k = h2(1, i.min(j) as u64, i.max(j) as u64) | 2;
-                if keys.insert(k) { *count += 1; }
-                k
-            } else if x == 2 { h2(0, i as u64, 0) | 2 } else { h2(0, j as u64, 0) | 2 };
-            acc = if acc == 0 { term } else {
-                let k = h2(2, acc, term) | 2;
-                if keys.insert(k) { *count += 1; }
-                k
-            };
-        }
-        acc
-    };
-    let mut bad: u64 = 0;
-    for (l, r) in &ev.terms {
-        let vl = dot(l, keys, &mut count);
-        let vr = dot(r, keys, &mut count);
-        if vl <= 1 && vr <= 1 {
-            if vl != vr { break; }
-            continue;
-        }
-        if vl == vr { continue; }
-        let (a, c) = (vl.min(vr), vl.max(vr));
-        let x = h2(3, a, c) | 2;
-        if keys.insert(x) { count += 1; }
-        bad = if bad == 0 { x } else {
-            let k = h2(4, bad, x) | 2;
-            if keys.insert(k) { count += 1; }
-            k
-        };
-    }
-    count
-}
-
 /// Leaf evaluator memoising the two sides of every quadruple's condition on the high variables
 /// they depend on (mirroring `RACert.Problem.leafR`).
 pub struct MemoEval<'a> {
@@ -265,132 +162,285 @@ impl<'a> MemoEval<'a> {
         t
     }
 
-    pub fn leaf(&mut self, alpha: u64) -> u64 {
+    /// Add the violations of the condition `qi` under the high assignment `a` to `bad`.
+    fn violations(&mut self, qi: usize, a: u64, bad: &mut [u64]) {
+        let (m1, m2) = self.masks[qi];
+        let lt = self.side(qi, 0, a & m1);
+        let rt = self.side(qi, 1, a & m2);
+        match (&*lt, &*rt) {
+            (Tab::F, Tab::F) | (Tab::T, Tab::T) => {}
+            (Tab::F, Tab::T) | (Tab::T, Tab::F) => bad.iter_mut().for_each(|a| *a = u64::MAX),
+            (Tab::F, Tab::M(m)) | (Tab::M(m), Tab::F) => bad.iter_mut().zip(m).for_each(|(a, b)| *a |= b),
+            (Tab::T, Tab::M(m)) | (Tab::M(m), Tab::T) => bad.iter_mut().zip(m).for_each(|(a, b)| *a |= !b),
+            (Tab::M(m1), Tab::M(m2)) => bad.iter_mut().zip(m1.iter().zip(m2)).for_each(|(a, (x, y))| *a |= x ^ y),
+        }
+    }
+
+    /// The leaf `alpha` of the problem with `b + m` low variables, the last `m` of which are
+    /// eliminated (mirroring `RACert.Problem.leafE`); `tags` as given by `Problem::quad_tags`.
+    pub fn leaf_elim(&mut self, alpha: u64, m: usize, tags: &[Option<usize>]) -> u64 {
         let words = self.ev.words;
+        let a0 = alpha << m;
         let mut bad = vec![0u64; words];
-        for qi in 0..self.masks.len() {
-            let (m1, m2) = self.masks[qi];
-            let lt = self.side(qi, 0, alpha & m1);
-            let rt = self.side(qi, 1, alpha & m2);
-            match (&*lt, &*rt) {
-                (Tab::F, Tab::F) | (Tab::T, Tab::T) => {}
-                (Tab::F, Tab::T) | (Tab::T, Tab::F) => return 0,
-                (Tab::F, Tab::M(m)) | (Tab::M(m), Tab::F) => bad.iter_mut().zip(m).for_each(|(a, b)| *a |= b),
-                (Tab::T, Tab::M(m)) | (Tab::M(m), Tab::T) => bad.iter_mut().zip(m).for_each(|(a, b)| *a |= !b),
-                (Tab::M(m1), Tab::M(m2)) => bad.iter_mut().zip(m1.iter().zip(m2)).for_each(|(a, (x, y))| *a |= x ^ y),
+        for qi in 0..tags.len() {
+            if tags[qi] == Some(0) {
+                self.violations(qi, a0, &mut bad);
             }
         }
-        let mut cnt = 0u64;
-        for (i, w) in bad.iter().enumerate() {
-            let m = if i + 1 == words { self.ev.mask } else { u64::MAX };
-            cnt += (!w & m).count_ones() as u64;
+        let last = self.ev.mask;
+        let mut e: Vec<Vec<u64>> = vec![bad.iter().map(|w| !w).collect()];
+        *e[0].last_mut().unwrap() &= last;
+        if e[0].iter().all(|&w| w == 0) {
+            return 0;
         }
-        cnt
+        for i in 0..m {
+            let mut b0 = vec![0u64; words];
+            let mut b1 = vec![0u64; words];
+            for qi in 0..tags.len() {
+                if tags[qi] == Some(i + 1) {
+                    self.violations(qi, a0, &mut b0);
+                    self.violations(qi, a0 | 1 << i, &mut b1);
+                }
+            }
+            // forced: exactly one value admissible; free: both
+            let mut next: Vec<Vec<u64>> = vec![vec![0u64; words]; e.len() + 1];
+            for j in 0..e.len() {
+                for w in 0..words {
+                    let f = b0[w] ^ b1[w];
+                    let r = !(b0[w] | b1[w]);
+                    next[j][w] |= e[j][w] & f;
+                    next[j + 1][w] |= e[j][w] & r;
+                }
+            }
+            e = next;
+        }
+        e.iter().enumerate().map(|(j, v)| (v.iter().map(|w| w.count_ones() as u64).sum::<u64>()) << j).sum()
     }
 }
 
-/// Number of distinct big-number operations the kernel performs for one more leaf with the
-/// memoised evaluator (`RACert.Problem.leafR`), given the set `keys` of canonical expressions
-/// already evaluated in the current declaration. `qm` are the blocks of quadruple indices.
-pub fn op_keys_memo(ev: &Evaluator, masks: &[(u64, u64)], blocks: &[Vec<usize>], alpha: u64, keys: &mut std::collections::HashSet<u64>, cat: &mut [usize; 6]) -> usize {
-    use std::collections::hash_map::DefaultHasher;
+/// A binary tree of quadruples (indices into `Problem::quads`) with masks, mirroring
+/// `RACert.QTree`.
+/// A classified side of a condition (mirroring `RACert.Side`): the mask of its high variables,
+/// its items `(mask, code)` and its fixed terms.
+pub type Side = (u64, Vec<(u64, usize)>, Vec<usize>);
+
+/// The classification of the terms of one side (mirroring `RACert.classify`).
+pub fn classify(b: usize, terms: &[(usize, usize)]) -> Side {
+    if terms.iter().any(|&(i, j)| i == 1 && j == 1) {
+        return (0, vec![(0, 0)], vec![]);
+    }
+    let hm = |c: usize| -> u64 { if c < b + 2 { 0 } else { 1 << (c - 2 - b) } };
+    let lv = |c: usize| -> usize { if c < 2 || c >= b + 2 { 0 } else { c - 1 } };
+    let mut items = vec![];
+    let mut fixed = vec![];
+    for &(c1, c2) in terms {
+        if c1 == 0 || c2 == 0 {
+            continue;
+        }
+        let tm = hm(c1) | hm(c2);
+        let (l1, l2) = (lv(c1), lv(c2));
+        if l1 == 0 {
+            if l2 == 0 || tm != 0 {
+                items.push((tm, l2));
+            } else {
+                fixed.push((l2 - 1) * 64 + (l2 - 1));
+            }
+        } else if l2 == 0 {
+            if tm != 0 {
+                items.push((tm, l1));
+            } else {
+                fixed.push((l1 - 1) * 64 + (l1 - 1));
+            }
+        } else {
+            fixed.push((l1 - 1).min(l2 - 1) * 64 + (l1 - 1).max(l2 - 1));
+        }
+    }
+    let mask = items.iter().fold(0, |m, it| m | it.0);
+    (mask, items, fixed)
+}
+
+fn side_lean(s: &Side) -> String {
+    let items: Vec<String> = s.1.iter().map(|(tm, c)| format!("({}, {})", tm, c)).collect();
+    let fixed: Vec<String> = s.2.iter().map(|c| format!("{}", c)).collect();
+    format!("({}, [{}], [{}])", s.0, items.join(", "), fixed.join(", "))
+}
+
+pub enum QTree {
+    Leaf { qi: usize, x: usize, m1: u64, m2: u64, sl: Side, sr: Side },
+    Node { id: usize, ml: u64, l: Box<QTree>, mr: u64, r: Box<QTree> },
+}
+
+impl QTree {
+    pub fn mask(&self) -> u64 {
+        match self {
+            QTree::Leaf { m1, m2, .. } => m1 | m2,
+            QTree::Node { ml, mr, .. } => ml | mr,
+        }
+    }
+
+    /// The leaf of the quadruple with index `qi` and code `x`.
+    pub fn leaf(p: &Problem, b: usize, qi: usize, x: usize) -> QTree {
+        let (l, r) = p.quad_terms(x);
+        let (sl, sr) = (classify(b, &l), classify(b, &r));
+        QTree::Leaf { qi, x, m1: sl.0, m2: sr.0, sl, sr }
+    }
+
+    /// A balanced tree over the given quadruples `(index, code)`, in order.
+    pub fn balanced(p: &Problem, b: usize, items: &[(usize, usize)], next_id: &mut usize) -> QTree {
+        if items.len() == 1 {
+            return QTree::leaf(p, b, items[0].0, items[0].1);
+        }
+        let mid = items.len().div_ceil(2);
+        let l = QTree::balanced(p, b, &items[..mid], next_id);
+        let r = QTree::balanced(p, b, &items[mid..], next_id);
+        *next_id += 1;
+        QTree::Node { id: *next_id, ml: l.mask(), l: Box::new(l), mr: r.mask(), r: Box::new(r) }
+    }
+
+    /// The Lean term.
+    pub fn lean(&self) -> String {
+        match self {
+            QTree::Leaf { x, sl, sr, .. } => format!(".leaf {} {} {}", x, side_lean(sl), side_lean(sr)),
+            QTree::Node { ml, l, mr, r, .. } => format!(".node {} ({}) {} ({})", ml, l.lean(), mr, r.lean()),
+        }
+    }
+
+    pub fn entries(&self, out: &mut Vec<(usize, u64, u64)>) {
+        match self {
+            QTree::Leaf { x, m1, m2, .. } => out.push((*x, *m1, *m2)),
+            QTree::Node { l, r, .. } => {
+                l.entries(out);
+                r.entries(out);
+            }
+        }
+    }
+}
+
+/// Simulation of the kernel's work for the leaves checked in one declaration with
+/// `RACert.Problem.leafE`: `keys` are the canonical big-number expressions already evaluated,
+/// `memo` the subtrees already evaluated (by node and masked high variables).
+pub struct Sim<'a> {
+    pub terms: &'a [(Vec<(usize, usize)>, Vec<(usize, usize)>)],
+    pub b: usize,
+    pub keys: std::collections::HashSet<u64>,
+    pub memo: std::collections::HashMap<(usize, u64), u64>,
+    /// Big operations by category: residuals, xor, tree, weights, population counts.
+    pub cat: [usize; 5],
+    /// Evaluated tree nodes and sides (a measure of the small reduction steps).
+    pub visits: usize,
+}
+
+fn h3(tag: u8, a: u64, c: u64, d: u64) -> u64 {
     use std::hash::{Hash, Hasher};
-    let b = ev.b;
-    let h3 = |tag: u8, a: u64, c: u64, d: u64| -> u64 { let mut h = DefaultHasher::new(); (tag, a, c, d).hash(&mut h); h.finish() | 2 };
-    let mut count = 0usize;
-    // value of one side: 0 false, 1 true, else key of its canonical expression
-    let side = |qi: usize, sd: u8, r: u64, keys: &mut std::collections::HashSet<u64>, count: &mut usize, cat: &mut [usize; 6]| -> u64 {
-        let terms = if sd == 0 { &ev.terms[qi].0 } else { &ev.terms[qi].1 };
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    (tag, a, c, d).hash(&mut h);
+    h.finish() | 2
+}
+
+impl<'a> Sim<'a> {
+    pub fn new(terms: &'a [(Vec<(usize, usize)>, Vec<(usize, usize)>)], b: usize) -> Self {
+        Sim { terms, b, keys: Default::default(), memo: Default::default(), cat: [0; 5], visits: 0 }
+    }
+
+    pub fn reset(&mut self) {
+        self.keys.clear();
+        self.memo.clear();
+    }
+
+    /// Value of one side: 0 false, 1 true, else the key of its table.
+    fn side(&mut self, qi: usize, sd: u8, r: u64) -> u64 {
+        let b = self.b;
+        let terms = if sd == 0 { &self.terms[qi].0 } else { &self.terms[qi].1 };
         let kind = |code: usize| -> u8 {
             match code { 0 => 0, 1 => 1, c => { let j = c - 2; if j < b { 2 } else { ((r >> (j - b)) & 1) as u8 } } }
         };
-        // is the value a constant?
-        let mut any = false;
+        if let Some(&v) = self.memo.get(&(1_000_000 + 2 * qi + sd as usize, r)) {
+            return v;
+        }
+        self.visits += 1;
+        let mut val: Option<u64> = None;
+        let mut acc: u64 = 0;
         for &(i, j) in terms {
             let (x, y) = (kind(i), kind(j));
             if x == 0 || y == 0 { continue; }
-            if x == 1 && y == 1 { return 1; }
-            any = true;
+            if x == 1 && y == 1 { val = Some(1); break; }
+            let term = if x == 2 && y == 2 {
+                let k = h3(1, i.min(j) as u64, i.max(j) as u64, 0);
+                if self.keys.insert(k) { self.cat[0] += 1; }
+                k
+            } else if x == 2 { h3(0, i as u64, 0, 0) } else { h3(0, j as u64, 0, 0) };
+            acc = if acc == 0 { term } else {
+                let k = h3(2, acc, term, 0);
+                if self.keys.insert(k) { self.cat[0] += 1; }
+                k
+            };
         }
-        if !any { return 0; }
-        let key = h3(10 + sd, qi as u64, r, 0);
-        if keys.insert(key) {
-            // first evaluation of this residual: its internal operations
-            let mut acc: u64 = 0;
-            for &(i, j) in terms {
-                let (x, y) = (kind(i), kind(j));
-                if x == 0 || y == 0 { continue; }
-                let term = if x == 2 && y == 2 {
-                    let k = h3(1, i.min(j) as u64, i.max(j) as u64, 0);
-                    if keys.insert(k) { *count += 1; cat[1] += 1; }
-                    k
-                } else if x == 2 { h3(0, i as u64, 0, 0) } else { h3(0, j as u64, 0, 0) };
-                acc = if acc == 0 { term } else {
-                    let k = h3(2, acc, term, 0);
-                    if keys.insert(k) { *count += 1; cat[2] += 1; }
+        let v = val.unwrap_or(acc);
+        self.memo.insert((1_000_000 + 2 * qi + sd as usize, r), v);
+        v
+    }
+
+    /// The violations of a tree: 0 none, else a key.
+    pub fn viol(&mut self, t: &QTree, rho: u64) -> u64 {
+        match t {
+            QTree::Leaf { qi, m1, m2, .. } => {
+                self.visits += 1;
+                let vl = self.side(*qi, 0, rho & m1);
+                let vr = self.side(*qi, 1, rho & m2);
+                if vl == vr { return 0; }
+                let q = h3(3, vl, vr, 0);
+                if self.keys.insert(q) { self.cat[1] += 1; }
+                q
+            }
+            QTree::Node { id, ml, l, mr, r } => {
+                if let Some(&v) = self.memo.get(&(*id, rho)) {
+                    return v;
+                }
+                self.visits += 1;
+                let a = self.viol(l, rho & ml);
+                let c = self.viol(r, rho & mr);
+                let v = if c == 0 { a } else if a == 0 { c } else {
+                    let k = h3(4, a, c, 0);
+                    if self.keys.insert(k) { self.cat[2] += 1; }
                     k
                 };
+                self.memo.insert((*id, rho), v);
+                v
             }
         }
-        key
-    };
-    if std::env::var("CERTGEN_TREE").is_ok() {
-        // balanced tree of disjunctions over all quadruples in order
-        let order: Vec<usize> = blocks.iter().flatten().cloned().collect();
-        let mut vals: Vec<u64> = vec![];
-        for &qi in &order {
-            let (m1, m2) = masks[qi];
-            let vl = side(qi, 0, alpha & m1, keys, &mut count, cat);
-            let vr = side(qi, 1, alpha & m2, keys, &mut count, cat);
-            if vl <= 1 && vr <= 1 {
-                if vl != vr { return count; }
-                vals.push(0);
-                continue;
-            }
-            let q = h3(3, vl, vr, 0);
-            if keys.insert(q) { count += 1; cat[3] += 1; }
-            vals.push(q);
-        }
-        while vals.len() > 1 {
+    }
+
+    /// One more leaf.
+    pub fn leaf(&mut self, qt: &QTree, ow: &[QTree], alpha: u64) {
+        let m = ow.len();
+        let a0 = alpha << m;
+        let bad = self.viol(qt, a0);
+        let mut e: Vec<u64> = vec![h3(6, bad, 0, 0)];
+        if self.keys.insert(e[0]) { self.cat[3] += 1; }
+        for (i, t) in ow.iter().enumerate() {
+            let mk = t.mask();
+            let b0 = self.viol(t, a0 & mk);
+            let b1 = self.viol(t, (a0 | 1 << i) & mk);
+            let f = h3(7, b0, b1, 0);
+            if self.keys.insert(f) { self.cat[3] += 1; }
+            let r = h3(8, b0, b1, 0);
+            if self.keys.insert(r) { self.cat[3] += 2; }
             let mut next = vec![];
-            for pair in vals.chunks(2) {
-                let v = if pair.len() == 1 || pair[1] == 0 { pair[0] } else if pair[0] == 0 { pair[1] } else {
-                    let k = h3(6, pair[0], pair[1], 0);
-                    if keys.insert(k) { count += 1; cat[4] += 1; }
-                    k
-                };
-                next.push(v);
+            let mut prev = 0u64;
+            for &x in &e {
+                let k = h3(9, x, prev, f ^ r.rotate_left(17));
+                if self.keys.insert(k) { self.cat[3] += if prev == 0 { 1 } else { 3 }; }
+                next.push(k);
+                prev = x;
             }
-            vals = next;
+            let k = h3(9, 0, prev, r);
+            if self.keys.insert(k) { self.cat[3] += 1; }
+            next.push(k);
+            e = next;
         }
-        return count;
+        // the weighted population count (`RACert.wtotF`) of the m + 1 tables
+        const WPOP: [usize; 9] = [0, 16, 23, 32, 37, 51, 56, 65, 70];
+        let key = e.iter().fold(0u64, |a, &x| h3(20, a, x, 0));
+        if self.keys.insert(key) { self.cat[4] += WPOP[e.len().min(8)]; }
     }
-    let mut bad: u64 = 0;
-    for blk in blocks {
-        let mut acc: u64 = 0;
-        for &qi in blk {
-            let (m1, m2) = masks[qi];
-            let vl = side(qi, 0, alpha & m1, keys, &mut count, cat);
-            let vr = side(qi, 1, alpha & m2, keys, &mut count, cat);
-            if vl <= 1 && vr <= 1 {
-                if vl != vr { return count; }
-                continue;
-            }
-            let q = h3(3, vl, vr, 0);
-            if keys.insert(q) { count += 1; cat[3] += 1; } // xor (not counted when the two sides are equal tables; unknown here)
-            acc = if acc == 0 { q } else {
-                let k = h3(4, acc, q, 0);
-                if keys.insert(k) { count += 1; cat[4] += 1; }
-                k
-            };
-        }
-        if acc != 0 {
-            bad = if bad == 0 { acc } else {
-                let k = h3(5, bad, acc, 0);
-                if keys.insert(k) { count += 1; cat[5] += 1; }
-                k
-            };
-        }
-    }
-    count
 }

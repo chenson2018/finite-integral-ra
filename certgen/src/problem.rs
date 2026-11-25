@@ -185,13 +185,20 @@ impl Problem {
 }
 
 impl Problem {
-    /// Masks of the high variables (relative to `b`) occurring in the two sides of the condition
-    /// of the quadruple with code `x`.
+    /// Masks of the high variables (relative to `b`) on which the two sides of the condition of
+    /// the quadruple with code `x` depend (mirroring `RACert.coversDot`): a side with a constant
+    /// true term is constant, and terms with a vanishing factor do not count.
     pub fn quad_masks(&self, x: usize, b: usize) -> (u64, u64) {
         let (l, r) = self.quad_terms(x);
         let mask = |terms: &Vec<(usize, usize)>| -> u64 {
+            if terms.iter().any(|&(i, j)| i == 1 && j == 1) {
+                return 0;
+            }
             let mut m = 0u64;
             for &(i, j) in terms {
+                if i == 0 || j == 0 {
+                    continue;
+                }
                 for c in [i, j] {
                     if c >= b + 2 {
                         m |= 1 << (c - 2 - b);
@@ -203,17 +210,62 @@ impl Problem {
         (mask(&l), mask(&r))
     }
 
-    /// Order the quadruples so that those depending only on slowly changing high variables (high
-    /// bits of `alpha`) come first, and return them in blocks with their masks.
-    pub fn order_quads(&mut self, b: usize, block: usize) -> Vec<Vec<(usize, u64, u64)>> {
-        let mut items: Vec<(usize, u64, u64)> = self.quads.iter().map(|&x| { let (m1, m2) = self.quad_masks(x, b); (x, m1, m2) }).collect();
+    /// The two sides of the condition of the quadruple are the same pair of rows (mirroring
+    /// `RACert.Problem.trivQuad`), so that the condition always holds.
+    pub fn quad_trivial(&self, x: usize) -> bool {
+        let (l, r) = self.quad_terms(x);
+        let (l1, l2): (Vec<usize>, Vec<usize>) = l.into_iter().unzip();
+        let (r1, r2): (Vec<usize>, Vec<usize>) = r.into_iter().unzip();
+        (l1 == r1 && l2 == r2) || (l1 == r2 && l2 == r1)
+    }
+
+    /// The variables on which the condition of the quadruple depends, as far as the checker can
+    /// tell.
+    pub fn quad_deps(&self, x: usize) -> u64 {
+        if self.quad_trivial(x) {
+            return 0;
+        }
+        let (m1, m2) = self.quad_masks(x, 0);
+        m1 | m2
+    }
+
+    /// Tags of the quadruples for the elimination of the variables `b, …, b + m - 1`: `None` for
+    /// a trivial condition, `Some(0)` if the condition depends on none of them, `Some(i + 1)` if
+    /// it depends on the `i`-th only.
+    pub fn quad_tags(&self, b: usize, m: usize) -> Vec<Option<usize>> {
+        self.quads
+            .iter()
+            .map(|&x| {
+                if self.quad_trivial(x) {
+                    return None;
+                }
+                let (m1, m2) = self.quad_masks(x, b);
+                let low = (m1 | m2) & ((1u64 << m) - 1);
+                assert!(low.count_ones() <= 1, "a condition depends on two eliminated variables");
+                Some(if low == 0 { 0 } else { low.trailing_zeros() as usize + 1 })
+            })
+            .collect()
+    }
+
+    /// The quadruples with the given tag, ordered so that those depending only on slowly changing
+    /// high variables (high bits of `alpha`) come first, with their masks.
+    pub fn tagged_quads(&self, b: usize, tags: &[Option<usize>], tag: usize) -> Vec<(usize, u64, u64)> {
+        let mut items: Vec<(usize, u64, u64)> = self
+            .quads
+            .iter()
+            .zip(tags)
+            .filter(|(_, t)| **t == Some(tag))
+            .map(|(&x, _)| {
+                let (m1, m2) = self.quad_masks(x, b);
+                (x, m1, m2)
+            })
+            .collect();
         // key: lowest relevant high variable, descending; quadruples without high variables first
         items.sort_by_key(|&(x, m1, m2)| {
             let m = m1 | m2;
             let low = if m == 0 { 64 } else { m.trailing_zeros() as usize };
             (std::cmp::Reverse(low), std::cmp::Reverse(m), x)
         });
-        self.quads = items.iter().map(|e| e.0).collect();
-        items.chunks(block).map(|c| c.to_vec()).collect()
+        items
     }
 }

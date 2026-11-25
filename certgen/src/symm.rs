@@ -163,12 +163,13 @@ pub fn reps_in(p: &Problem, b: usize, grp: &BitGroup, tree: &Tree, lo: u64, hi: 
 }
 
 /// All orbit minima, computed in parallel.
-pub fn all_reps(p: &Problem, b: usize, grp: &BitGroup) -> Vec<Rep> {
+pub fn all_reps(p: &Problem, b: usize, m: usize, grp: &BitGroup) -> Vec<Rep> {
     let total: u64 = 1 << grp.t;
     let nthreads = std::thread::available_parallelism().map(|x| x.get()).unwrap_or(4).min(10) as u64;
     let pieces = (nthreads * 8).min(total);
     let step = total / pieces;
-    let tree = Tree::new(p, b);
+    let tree = Tree::new_elim(p, b, m);
+    let b = b + m;
     let mut results: Vec<Vec<Rep>> = vec![vec![]; pieces as usize];
     let next = std::sync::atomic::AtomicUsize::new(0);
     let slots: Vec<std::sync::Mutex<Vec<Rep>>> = (0..pieces).map(|_| std::sync::Mutex::new(vec![])).collect();
@@ -191,46 +192,68 @@ pub fn all_reps(p: &Problem, b: usize, grp: &BitGroup) -> Vec<Rep> {
     results.concat()
 }
 
-/// Estimated kernel time (seconds) of the symmetry-reduced certificate of a class.
-pub fn estimate(p: &Problem, b: usize, grp: &BitGroup, reps: &[Rep]) -> f64 {
-    // Calibrated on measured kernel times with the memoised evaluator: per leaf about 4 ms plus
-    // 25 µs per quadruple of small reduction steps and about 70 big-number operations (14 of
-    // them for the population count) at 55 µs each for tables of 2^20 bits (with the malloc
-    // settings of `scripts/safe-run.sh`; about twice that without), linear in the table size;
-    // about 0.6 ms per orbit minimum.
-    let live = reps.iter().filter(|r| r.dead.is_none()).count() as f64;
-    let leaf = 0.004 + p.quads.len() as f64 * 25e-6 + 70.0 * 55e-6 * (2f64).powi(b as i32 - 20);
-    let _ = grp;
-    live * leaf + reps.len() as f64 * 0.0006
+/// Estimated kernel time (seconds, on one thread) of one evaluated leaf and of one orbit
+/// minimum, with tables of `2^b` bits and `m` eliminated variables.
+pub fn leaf_cost(_p: &Problem, b: usize, m: usize) -> (f64, f64) {
+    // Calibrated on measured kernel times (with the malloc settings of `scripts/safe-run.sh`):
+    // about 2 ms of small reduction steps per leaf, and 54 µs per big-number operation on tables
+    // of 2^20 bits, linear in the table size; larger tables do not fit into the processor caches
+    // together with their operands and cost more per bit, in particular when several files are
+    // checked in parallel. About 0.6 ms per orbit minimum.
+    let penalty = match b { 0..=20 => 1.0, 21 => 1.5, _ => 2.5 };
+    let per_op = 54e-6 * (2f64).powi(b as i32 - 20) * penalty;
+    (0.002 + crate::lean::leaf_ops(m) as f64 * per_op, 0.0006)
 }
 
-/// Choose the low variables as a union of orbits of variables under the symmetries `hs`, of
-/// total size at most `bmax`, minimising the estimated checking time. Returns the numbering of
-/// the variables (low ones first) and `b`.
-pub fn choose_low(sys: &Sys, sigma: &[usize], hs: &[Vec<usize>], bmax: usize) -> (Vec<usize>, usize) {
+/// The variables to eliminate: a union of orbits of variables under the symmetries `hs` no two
+/// of which occur in the condition of the same quadruple.
+pub fn choose_elim(base: &Problem, orbits: &[Vec<usize>]) -> Vec<usize> {
+    let v = base.nvars;
+    let mut adj = vec![0u64; v];
+    for &x in &base.quads {
+        let d = base.quad_deps(x);
+        for a in 0..v {
+            if d >> a & 1 == 1 {
+                adj[a] |= d & !(1 << a);
+            }
+        }
+    }
+    let mut chosen: Vec<usize> = vec![];
+    let mut cm = 0u64;
+    for (i, o) in orbits.iter().enumerate() {
+        let om: u64 = o.iter().fold(0, |m, &a| m | 1 << a);
+        if o.iter().all(|&a| adj[a] & (om | cm) == 0) {
+            chosen.push(i);
+            cm |= om;
+        }
+    }
+    chosen
+}
+
+/// Choose the eliminated variables and the low variables, each a union of orbits of variables
+/// under the symmetries `hs`, with at most `bmax` low variables, minimising the estimated
+/// checking time. Returns the numbering of the variables (low ones first, then the eliminated
+/// ones), the number `b` of low variables and the number `m` of eliminated variables.
+pub fn choose_low(sys: &Sys, sigma: &[usize], hs: &[Vec<usize>], bmax: usize) -> (Vec<usize>, usize, usize) {
     let base = Problem::new(sys, sigma, &|_p, roots| roots);
     let orbits = var_orbits(&base, hs);
+    let elim = choose_elim(&base, &orbits);
+    let zs: Vec<usize> = elim.iter().flat_map(|&i| orbits[i].clone()).collect();
+    let m = zs.len();
+    let orbits: Vec<Vec<usize>> = orbits.into_iter().enumerate().filter(|(i, _)| !elim.contains(i)).map(|x| x.1).collect();
     let sizes: Vec<usize> = orbits.iter().map(|o| o.len()).collect();
     let no = orbits.len();
     // number of quadruples in which each variable occurs
     let mut occ = vec![0usize; base.nvars];
     for &x in &base.quads {
-        let (l, r) = base.quad_terms(x);
-        let mut seen = vec![false; base.nvars];
-        for (i, j) in l.into_iter().chain(r) {
-            for c in [i, j] {
-                if c >= 2 {
-                    seen[c - 2] = true;
-                }
-            }
-        }
-        for (v, s) in seen.iter().enumerate() {
-            if *s {
-                occ[v] += 1;
+        let d = base.quad_deps(x);
+        for (v, o) in occ.iter_mut().enumerate() {
+            if d >> v & 1 == 1 {
+                *o += 1;
             }
         }
     }
-    let roots_of = |mask: u64| -> (Vec<usize>, usize) {
+    let roots_of = |mask: u64| -> (Vec<usize>, usize, usize) {
         let mut order: Vec<usize> = vec![];
         for (i, o) in orbits.iter().enumerate() {
             if mask >> i & 1 == 1 {
@@ -238,6 +261,7 @@ pub fn choose_low(sys: &Sys, sigma: &[usize], hs: &[Vec<usize>], bmax: usize) ->
             }
         }
         let b = order.len();
+        order.extend(&zs);
         // high variables: those occurring in few quadruples get the low bits of `alpha`, which
         // change fastest between consecutive leaves, so that most residuals are shared
         let mut high: Vec<usize> = vec![];
@@ -248,17 +272,17 @@ pub fn choose_low(sys: &Sys, sigma: &[usize], hs: &[Vec<usize>], bmax: usize) ->
         }
         high.sort_by_key(|&j| (occ[j], j));
         order.extend(high);
-        (order.into_iter().map(|j| base.reps[j]).collect(), b)
+        (order.into_iter().map(|j| base.reps[j]).collect(), b, m)
     };
-    if base.nvars <= bmax {
+    if base.nvars - m <= bmax {
         return roots_of((1u64 << no) - 1);
     }
     assert!(no <= 30, "too many variable orbits");
-    // candidate subsets: total size in [bmax - 6, bmax], at most 26 high variables
+    // candidate subsets: total size in [bmax - 6, bmax], at most 34 high variables
     let mut cands: Vec<u64> = vec![];
     for mask in 0u64..(1 << no) {
         let sz: usize = (0..no).filter(|i| mask >> i & 1 == 1).map(|i| sizes[i]).sum();
-        if sz <= bmax && sz + 6 >= bmax && base.nvars - sz <= 34 {
+        if sz <= bmax && sz + 6 >= bmax && base.nvars - m - sz <= 34 {
             cands.push(mask);
         }
     }
@@ -274,47 +298,49 @@ pub fn choose_low(sys: &Sys, sigma: &[usize], hs: &[Vec<usize>], bmax: usize) ->
         return roots_of(best.1);
     }
     // sample if there are too many candidates
-    let stride = cands.len().div_ceil(40);
+    let stride = cands.len().div_ceil(160);
     let mut best: Option<(f64, u64)> = None;
     for &mask in cands.iter().step_by(stride) {
-        let (roots, b) = roots_of(mask);
+        let (roots, b, m) = roots_of(mask);
         let order = move |_p: &Problem, _r: Vec<usize>| roots.clone();
         let p = Problem::new(sys, sigma, &order);
-        let grp = BitGroup::new(&p, b, hs);
-        let est = if grp.t <= 22 {
-            let reps = all_reps(&p, b, &grp);
-            estimate(&p, b, &grp, &reps)
-        } else {
-            // estimate from a pseudo-random sample of the high assignments
-            let tree = Tree::new(&p, b);
-            let samples = 1u64 << 18;
-            let mut x: u64 = 0x9E3779B97F4A7C15;
-            let (mut canon, mut live) = (0u64, 0u64);
-            let mut assign = vec![2u8; p.nvars];
-            for _ in 0..samples {
-                x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
-                let alpha = (x >> 20) & ((1u64 << grp.t) - 1);
-                if (0..grp.perms.len()).any(|i| grp.act(i, alpha) < alpha) {
-                    continue;
-                }
-                canon += 1;
-                for i in 0..grp.t {
-                    assign[b + i] = ((alpha >> i) & 1) as u8;
-                }
-                if tree.dead(&assign).is_none() {
-                    live += 1;
-                }
-            }
-            let scale = (1u64 << grp.t) as f64 / samples as f64;
-            let fake: Vec<Rep> = vec![];
-            let per_leaf = estimate(&p, b, &grp, &[Rep { alpha: 0, m: 1, dead: None }]);
-            let per_dead = estimate(&p, b, &grp, &[Rep { alpha: 0, m: 1, dead: Some(0) }]);
-            let _ = fake;
-            scale * (live as f64 * per_leaf + (canon - live) as f64 * per_dead)
-        };
+        let grp = BitGroup::new(&p, b + m, hs);
+        let (canon, live) = sample_reps(&p, b, m, &grp);
+        let (per_leaf, per_rep) = leaf_cost(&p, b, m);
+        let est = live * per_leaf + canon * per_rep;
         if best.is_none() || est < best.unwrap().0 {
             best = Some((est, mask));
         }
     }
     roots_of(best.unwrap().1)
+}
+
+/// The numbers of orbit minima and of live orbit minima: exact for at most `2^22` high
+/// assignments, otherwise estimated from a pseudo-random sample.
+pub fn sample_reps(p: &Problem, b: usize, m: usize, grp: &BitGroup) -> (f64, f64) {
+    if grp.t <= 22 {
+        let reps = all_reps(p, b, m, grp);
+        return (reps.len() as f64, reps.iter().filter(|r| r.dead.is_none()).count() as f64);
+    }
+    let tree = Tree::new_elim(p, b, m);
+    let samples = 1u64 << 18;
+    let mut x: u64 = 0x9E3779B97F4A7C15;
+    let (mut canon, mut live) = (0u64, 0u64);
+    let mut assign = vec![2u8; p.nvars];
+    for _ in 0..samples {
+        x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        let alpha = (x >> 20) & ((1u64 << grp.t) - 1);
+        if (0..grp.perms.len()).any(|i| grp.act(i, alpha) < alpha) {
+            continue;
+        }
+        canon += 1;
+        for i in 0..grp.t {
+            assign[b + m + i] = ((alpha >> i) & 1) as u8;
+        }
+        if tree.dead(&assign).is_none() {
+            live += 1;
+        }
+    }
+    let scale = (1u64 << grp.t) as f64 / samples as f64;
+    (canon as f64 * scale, live as f64 * scale)
 }

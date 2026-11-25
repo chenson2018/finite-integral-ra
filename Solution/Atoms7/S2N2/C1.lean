@@ -8,7 +8,6 @@ module
 
 public import Solution.Atoms7.S2N2.C1.Defs
 public import Solution.Atoms7.S2N2.C1.S0
-public import Solution.Atoms7.S2N2.C1.S1
 
 /-! Generated certificate (see `certgen`): symmetry class 1 of type (2, 2). -/
 
@@ -22,8 +21,8 @@ namespace RACert.S2N2.C1
 
 open RACert RACert.Problem
 
-theorem total : OrbitSeg 13 perms (P.leaf 21) 0 8192 8192 129381732 :=
-  OrbitSeg.cast ((S0.total).append (S1.total))
+theorem total : OrbitSeg 12 perms (P.leaf (20 + 2)) 0 4096 4096 129381732 :=
+  OrbitSeg.cast (S0.total)
     (by decide +kernel) (by decide +kernel)
 
 /-- The number of lawful cycle sets invariant under the symmetry of this class. -/

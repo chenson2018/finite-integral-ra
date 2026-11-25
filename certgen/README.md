@@ -7,6 +7,7 @@ proved in `Solution/`.
 cargo build --release
 target/release/certgen gen <s> <n> <repo-root> [bmax]     # write Solution/Atoms<k>/S<s>N<n>/
 target/release/certgen plan <s> <n> <bmin> <bmax>         # sampled estimate of certificate size and check time
+target/release/certgen ops <s> <n> <bmax> [leaves]        # simulated sharing of big-number operations
 ```
 
 `<s>` is the number of symmetric diversity atoms, `<n>` the number of pairs of nonsymmetric atoms,
@@ -43,27 +44,43 @@ The Lean development (`Solution/Theory`, `Solution/Cert`) reduces
    first `b` variables are represented by their truth-table columns, which are natural numbers
    with `2^b` bits, and the formula is evaluated with `Nat.land`, `Nat.lor`, `Nat.xor` — the
    operations the Lean kernel performs with GMP — followed by a verified SWAR population count
-   (`Solution/Cert/Bits.lean`). A *leaf* `P.leaf b α` is the number of models whose remaining
-   variables are given by the bits of `α`; constants are folded symbolically, so a leaf whose
-   high variables already violate a condition costs almost nothing.
+   (`Solution/Cert/Bits.lean`, `Popcount.lean`). A *leaf* `P.leaf b α` is the number of models
+   whose remaining variables are given by the bits of `α`. Small problems are settled by a
+   single leaf.
 
-   For large problems (`Solution/Cert/Sym.lean`, `Orbit.lean`, `SymOrbit.lean`) the leaves are
-   not all evaluated: the symmetries of the problem (the centraliser of `σ`) permute the high
-   variables, leaves are constant on orbits, and only one leaf per orbit (its minimum, with the
-   orbit size as weight) is needed. The certificate lists the orbit minima in segments; each
-   segment is checked (`checkSeg`: minimality and orbit size of every listed assignment), and the
-   total orbit size `2^t` proves that no orbit is missing. Minima whose high variables violate a
-   condition are discharged in bulk (`checkEv`) rather than by a truth table.
+5. **Symmetry** (`Solution/Cert/Sym.lean`, `Orbit.lean`, `SymOrbit.lean`). For large problems
+   the leaves are not all evaluated: the symmetries of the problem (the centraliser of `σ`)
+   permute the high variables, leaves are constant on orbits, and only one leaf per orbit (its
+   minimum, with the orbit size as weight) is needed. The certificate lists the orbit minima in
+   parts; each part is checked (`checkSeg`: minimality and orbit size of every listed
+   assignment), and the total orbit size `2^t` proves that no orbit is missing. Minima whose
+   high variables already violate a condition are discharged without a truth table (`deadR`).
 
-5. **Sharing between leaves** (`Solution/Cert/Fast.lean`). The leaves of a segment are checked
-   by a few theorems (`checkLeavesR`), each covering many leaves. The evaluator `leafR` is
-   written so that the kernel sees *the same expression* whenever two leaves need the same
-   table: each side of an associativity condition is a function of the quadruple and of the
-   high variables it actually depends on (`dotRL P b x (α &&& mask)`), intermediate values are
-   passed on in continuation-passing style in a canonical form, and violations are accumulated
-   in blocks. The kernel caches the value of every expression within one declaration, so the
-   leaves of a theorem share almost all of their big-number operations; what remains per leaf is
-   essentially one population count (`Solution/Cert/Popcount.lean`: 14 big operations).
+6. **Eliminated variables** (`Solution/Cert/Elim.lean`). Some variables never occur together in
+   the condition of a quadruple — in practice the variables `a ≤ a ; a` of the symmetric atoms
+   `a`. Given the other variables their conditions are independent, so the number of their
+   admissible values is a product and they need not be dimensions of the truth tables:
+   `leafE P b m qt ow α` computes `P.leaf (b + m) α` with tables of `2^b` bits. The conditions
+   not depending on the `m` eliminated variables (`qt`) give the table of admissible assignments;
+   for the `i`-th eliminated variable the conditions depending on it (`ow[i]`) are evaluated for
+   both of its values, which gives the tables of positions where it is forced or free; the tables
+   of the positions with exactly `j` free variables are maintained (`frL`, `stepE0`), and the
+   leaf is `∑ j, 2^j * popcount (E j)`, computed by a merged SWAR population count
+   (`Solution/Cert/WPop.lean`). `checkElim` validates the classification of the conditions; a
+   condition whose two sides are the same pair of rows holds trivially and is dropped.
+
+7. **Sharing between leaves** (`Solution/Cert/Elim.lean`, `Side.lean`). The weighted sum of the
+   leaves of a part is checked by one theorem (`sumEvE`), and the evaluator is written so that the
+   kernel, which caches the value of every expression within a declaration, evaluates each
+   distinct table once:
+   * each side of a condition is pre-classified (`Side`: terms guarded by high variables, and
+     terms independent of them), so that evaluating it takes a few reduction steps;
+   * the conditions form a binary tree (`QTree`), and every subtree is evaluated as a function of
+     the high variables it depends on, given as a literal (`violO t (α &&& mask)`), so that its
+     value is shared by all leaves agreeing on these variables;
+   * tables are handed on as *expressions* (`Option ℕ`, `SVal`) which the kernel only evaluates
+     as arguments of a big-number operation, where the result is cached under the expression;
+     a table that is merely passed along is never recomputed.
 
 Every computational step is a `decide +kernel` proof of a closed Boolean or numeric equation, so
 the only axioms are `propext`, `Quot.sound` and `Classical.choice`.
@@ -71,19 +88,25 @@ the only axioms are `propext`, `Quot.sound` and `Classical.choice`.
 ## Design notes for kernel reduction
 
 * The kernel's cost for an operation on big literals is proportional to the size of the result
-  (about 1 µs per KB: every intermediate value is retained until the end of the declaration), and
-  about 1 µs per elementary reduction step otherwise. Truth tables of `2^18`–`2^20` bits give the
-  best throughput; larger tables only use more memory.
+  (about 0.4 µs per KB with the malloc settings below: the result is written to fresh memory,
+  copied and hashed, and every intermediate value is retained until the end of the declaration),
+  and several µs per reduction step of the surrounding bookkeeping, because every intermediate
+  expression enters the kernel's caches. Both matter: truth tables of `2^20` bits fit into the
+  processor caches together with their operands and give the best throughput.
 * Hot loops are written directly with recursors (`List.rec`, `Nat.rec`, `Bool.rec`) and the raw
   `Nat.land`/`Nat.lor`/… functions; equation-compiler definitions and notation type classes cost
   several times more reduction steps.
 * The kernel caches the weak head normal form of every expression it meets within a
-  declaration. This is what limits the size of one theorem (memory), and it is also what makes
-  the sharing of step 5 work: structurally equal expressions are evaluated once.
+  declaration, by syntactic equality. This limits the size of one theorem (memory), and it is
+  what makes the sharing of step 7 work — provided the arguments of an expensive function always
+  have the same syntactic form (`forceL` turns a computed number into a literal), and provided
+  big values are consumed as arguments of an operation rather than returned in tail position,
+  where the cache is not consulted.
 * Generated files set `Elab.async false` because asynchronous elaboration keeps the kernel's
   memory until the end of the file.
-* Files are split so that `lake` checks them in parallel.
-* Checking is dominated by memory traffic. Exporting
+* Files are split so that `lake` checks them in parallel. Checking is dominated by memory
+  traffic, so the speed-up from many threads is limited (about 3–4 on a 12-thread laptop CPU).
+  Exporting
   `MALLOC_MMAP_THRESHOLD_=4294967296 MALLOC_TRIM_THRESHOLD_=4294967296 MALLOC_TOP_PAD_=1073741824`
   (as `scripts/safe-run.sh` does) lets GMP reuse heap memory instead of mapping every large
   block afresh and noticeably reduces the system time.
@@ -98,11 +121,11 @@ the malloc settings above), from a state where `Solution/Theory` and `Solution/C
 | (0,0) (1,0) (0,1) (2,0) | 1–3 | 1, 2, 3, 7 | one leaf per class | seconds |
 | (1,1) (3,0) | 4 | 37, 65 | one leaf per class | seconds |
 | (0,2) (2,1) (4,0) | 5 | 83, 1316, 3013 | one leaf per class | seconds |
-| (1,2) (3,1) (5,0) | 6 | 47965, 988464, 3849920 | orbit minima, 2^20–2^22-bit tables | under a minute |
-| (0,3) | 7 | 4492953 | 24432 orbit minima, 5571 leaves | under a minute |
-| (2,2) | 7 | 2186435732 | 286272 orbit minima, 68513 leaves | about 10 minutes |
+| (1,2) (3,1) (5,0) | 6 | 47965, 988464, 3849920 | 6, 26, 29 leaves with 1, 3, 5 eliminated variables | seconds |
+| (0,3) | 7 | 4492953 | 24432 orbit minima, 5571 leaves | about half a minute |
+| (2,2) | 7 | 2186435732 | 277824 orbit minima, 65947 leaves, 2 eliminated variables | about 4 minutes |
 
-Not covered: `(6,0)` (estimated at well over 50 CPU-hours of kernel time with this method: all
-1.7 million orbits of the 30 high variables need a truth table of 2^26 bits) and `(1,3)`
-(estimated at tens of thousands of CPU-hours); consequently also the 7-atom total. Use
-`certgen plan <s> <n> <bmin> <bmax>` to reproduce these estimates.
+Not yet covered: `(4,1)`, `(6,0)` and `(1,3)`; consequently also the 7-atom total.
+`certgen plan <s> <n> <bmin> <bmax>` estimates the certificate size and the single-thread
+kernel time of the identity class for the possible choices of low variables, and
+`certgen ops <s> <n> <bmax> [leaves per theorem]` simulates the sharing of big-number operations.
