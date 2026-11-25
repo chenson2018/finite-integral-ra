@@ -1,0 +1,127 @@
+/-
+Copyright (c) 2026 Chris Henson. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Chris Henson
+-/
+
+module
+
+public import Solution.Atoms7.S0N3.C0.Defs
+
+/-! Generated certificate segment; see `certgen`. -/
+
+set_option linter.style.longLine false
+set_option maxRecDepth 100000
+set_option Elab.async false
+
+@[expose] public section
+
+namespace RACert.S0N3.C0
+
+open RACert RACert.Problem
+
+namespace S12
+
+/-- Orbit minima `(α, orbit size)` in this segment. -/
+def seg : List (ℕ × ℕ) :=
+  [(31659, 48), (31660, 48), (31661, 48), (31662, 48), (31663, 48), (31664, 48), (31665, 48), (31666, 48), (31667, 48), (31668, 48), (31669, 48), (31670, 48), (31671, 48), (31672, 48), (31673, 48), (31674, 48), (31675, 48), (31676, 48), (31677, 48), (31678, 48), (31679, 48), (31680, 48), (31681, 48), (31682, 48), (31683, 48), (31684, 48), (31685, 48), (31686, 48), (31687, 48), (31688, 48), (31689, 48), (31690, 48), (31691, 48), (31692, 48), (31693, 48), (31694, 48), (31695, 48), (31696, 48), (31697, 48), (31698, 48), (31699, 48), (31700, 48), (31701, 48), (31702, 48), (31703, 48), (31704, 48), (31705, 48), (31706, 48), (31707, 48), (31708, 48), (31709, 48), (31710, 48), (31711, 48), (31712, 48), (31713, 48), (31714, 48), (31715, 48), (31716, 48), (31717, 48), (31718, 48), (31719, 48), (31720, 48), (31721, 48), (31722, 48), (31723, 48), (31724, 48), (31725, 48), (31726, 48), (31727, 48), (31728, 48), (31729, 48), (31730, 48), (31731, 48), (31732, 48), (31733, 48), (31734, 48), (31735, 48), (31736, 48), (31737, 48), (31738, 48), (31739, 48), (31740, 48), (31741, 48), (31742, 48), (31743, 48), (32512, 24), (32513, 48), (32514, 48), (32515, 48), (32517, 48), (32518, 24), (32519, 48), (32521, 24), (32523, 48), (32527, 24), (32528, 48), (32529, 48), (32530, 48), (32531, 48), (32532, 48), (32533, 48), (32534, 48), (32535, 48), (32536, 48), (32537, 48), (32538, 48), (32539, 48), (32540, 48), (32541, 48), (32542, 48), (32543, 48), (32544, 48), (32545, 48), (32546, 48), (32547, 48), (32548, 48), (32549, 48), (32550, 48), (32551, 48), (32552, 48), (32553, 48), (32554, 48), (32555, 48), (32556, 48), (32557, 48), (32558, 48), (32559, 48), (32560, 48), (32561, 48), (32562, 48), (32563, 48), (32564, 48), (32565, 48), (32566, 48), (32567, 48), (32568, 48), (32569, 48), (32570, 48), (32571, 48), (32572, 48), (32573, 48), (32574, 48), (32575, 48), (32592, 48), (32593, 48), (32594, 48), (32595, 48), (32596, 48), (32597, 48), (32598, 48), (32599, 48), (32600, 48), (32601, 48), (32602, 48), (32603, 48), (32604, 48), (32605, 48), (32606, 48)]
+
+/-- Evidence: `0` for a leaf evaluated below, `x + 1` for a leaf killed by the quadruple `x`. -/
+def ev : List ℕ :=
+  [0, 418, 418, 0, 0, 427, 432, 431, 434, 431, 432, 431, 434, 439, 439, 438, 0, 0, 0, 0, 0, 427, 432, 431, 0, 418, 418, 424, 0, 418, 418, 424, 0, 418, 418, 424, 0, 427, 432, 431, 0, 424, 432, 424, 0, 424, 439, 424, 0, 424, 0, 424, 0, 427, 432, 431, 0, 418, 418, 431, 0, 418, 418, 438, 0, 418, 418, 0, 0, 427, 432, 431, 0, 431, 432, 431, 0, 439, 439, 438, 0, 0, 0, 0, 0, 502, 432, 427, 434, 418, 424, 434, 418, 440, 0, 650, 432, 427, 434, 424, 432, 424, 434, 424, 439, 424, 440, 424, 0, 424, 0, 427, 432, 431, 434, 418, 418, 431, 434, 418, 418, 438, 440, 418, 418, 0, 0, 427, 432, 431, 434, 431, 432, 431, 434, 438, 439, 438, 440, 0, 0, 0, 0, 427, 432, 431, 440, 424, 432, 424, 0, 424, 439, 424, 440, 424, 0, 424]
+
+/-- The evaluated leaves `(α, value)`. -/
+def live : List (ℕ × ℕ) :=
+  [(31659, 90), (31662, 67), (31663, 248), (31675, 146), (31676, 36), (31677, 242), (31678, 128), (31679, 580), (31683, 4), (31687, 16), (31691, 30), (31695, 116), (31699, 24), (31703, 88), (31707, 172), (31709, 246), (31711, 600), (31715, 48), (31719, 144), (31723, 300), (31726, 366), (31727, 936), (31731, 156), (31735, 316), (31739, 500), (31740, 292), (31741, 964), (31742, 672), (31743, 2076), (32527, 12), (32541, 24), (32543, 56), (32558, 24), (32559, 96), (32572, 14), (32573, 102), (32574, 56), (32575, 208), (32599, 108), (32605, 210)]
+
+theorem l31659 : P.leaf 18 31659 = 90 := by decide +kernel
+
+theorem l31662 : P.leaf 18 31662 = 67 := by decide +kernel
+
+theorem l31663 : P.leaf 18 31663 = 248 := by decide +kernel
+
+theorem l31675 : P.leaf 18 31675 = 146 := by decide +kernel
+
+theorem l31676 : P.leaf 18 31676 = 36 := by decide +kernel
+
+theorem l31677 : P.leaf 18 31677 = 242 := by decide +kernel
+
+theorem l31678 : P.leaf 18 31678 = 128 := by decide +kernel
+
+theorem l31679 : P.leaf 18 31679 = 580 := by decide +kernel
+
+theorem l31683 : P.leaf 18 31683 = 4 := by decide +kernel
+
+theorem l31687 : P.leaf 18 31687 = 16 := by decide +kernel
+
+theorem l31691 : P.leaf 18 31691 = 30 := by decide +kernel
+
+theorem l31695 : P.leaf 18 31695 = 116 := by decide +kernel
+
+theorem l31699 : P.leaf 18 31699 = 24 := by decide +kernel
+
+theorem l31703 : P.leaf 18 31703 = 88 := by decide +kernel
+
+theorem l31707 : P.leaf 18 31707 = 172 := by decide +kernel
+
+theorem l31709 : P.leaf 18 31709 = 246 := by decide +kernel
+
+theorem l31711 : P.leaf 18 31711 = 600 := by decide +kernel
+
+theorem l31715 : P.leaf 18 31715 = 48 := by decide +kernel
+
+theorem l31719 : P.leaf 18 31719 = 144 := by decide +kernel
+
+theorem l31723 : P.leaf 18 31723 = 300 := by decide +kernel
+
+theorem l31726 : P.leaf 18 31726 = 366 := by decide +kernel
+
+theorem l31727 : P.leaf 18 31727 = 936 := by decide +kernel
+
+theorem l31731 : P.leaf 18 31731 = 156 := by decide +kernel
+
+theorem l31735 : P.leaf 18 31735 = 316 := by decide +kernel
+
+theorem l31739 : P.leaf 18 31739 = 500 := by decide +kernel
+
+theorem l31740 : P.leaf 18 31740 = 292 := by decide +kernel
+
+theorem l31741 : P.leaf 18 31741 = 964 := by decide +kernel
+
+theorem l31742 : P.leaf 18 31742 = 672 := by decide +kernel
+
+theorem l31743 : P.leaf 18 31743 = 2076 := by decide +kernel
+
+theorem l32527 : P.leaf 18 32527 = 12 := by decide +kernel
+
+theorem l32541 : P.leaf 18 32541 = 24 := by decide +kernel
+
+theorem l32543 : P.leaf 18 32543 = 56 := by decide +kernel
+
+theorem l32558 : P.leaf 18 32558 = 24 := by decide +kernel
+
+theorem l32559 : P.leaf 18 32559 = 96 := by decide +kernel
+
+theorem l32572 : P.leaf 18 32572 = 14 := by decide +kernel
+
+theorem l32573 : P.leaf 18 32573 = 102 := by decide +kernel
+
+theorem l32574 : P.leaf 18 32574 = 56 := by decide +kernel
+
+theorem l32575 : P.leaf 18 32575 = 208 := by decide +kernel
+
+theorem l32599 : P.leaf 18 32599 = 108 := by decide +kernel
+
+theorem l32605 : P.leaf 18 32605 = 210 := by decide +kernel
+
+theorem segOK : checkSeg 20 perms 31659 32607 seg = true := by decide +kernel
+
+theorem evOK : P.checkEv 18 seg ev live 0 504336 = true := by decide +kernel
+
+theorem total : OrbitSeg 20 perms (P.leaf 18) 31659 32607 7488 504336 :=
+  OrbitSeg.of_check segOK (by decide +kernel)
+    (checkEv_sum check rows evOK (.cons l31659 (.cons l31662 (.cons l31663 (.cons l31675 (.cons l31676 (.cons l31677 (.cons l31678 (.cons l31679 (.cons l31683 (.cons l31687 (.cons l31691 (.cons l31695 (.cons l31699 (.cons l31703 (.cons l31707 (.cons l31709 (.cons l31711 (.cons l31715 (.cons l31719 (.cons l31723 (.cons l31726 (.cons l31727 (.cons l31731 (.cons l31735 (.cons l31739 (.cons l31740 (.cons l31741 (.cons l31742 (.cons l31743 (.cons l32527 (.cons l32541 (.cons l32543 (.cons l32558 (.cons l32559 (.cons l32572 (.cons l32573 (.cons l32574 (.cons l32575 (.cons l32599 (.cons l32605 (.nil))))))))))))))))))))))))))))))))))))))))))
+
+end S12
+
+end RACert.S0N3.C0
