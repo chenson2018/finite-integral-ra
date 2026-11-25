@@ -316,7 +316,10 @@ fn trees(p: &Problem, b: usize, m: usize, tags: &[Option<usize>]) -> (QTree, Vec
 }
 
 /// Maximal number of parts in one segment file.
-const FILE_PARTS: usize = 12;
+const FILE_PARTS: usize = 24;
+
+/// Maximal number of orbit minima in one segment file (they are checked by one theorem).
+const FILE_REPS: usize = 6000;
 
 /// Number of big-number operations of the weighted population count of `n` tables
 /// (`RACert.wtotF`).
@@ -489,20 +492,43 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
     }
     let top: u64 = 1 << t;
     let quad_index: std::collections::HashMap<usize, usize> = flat.iter().enumerate().map(|(i, e)| (e.0, i)).collect();
-    let nparts = parts_reps.len();
+    // files: consecutive parts, with one check of all their orbit minima (its set-up for a
+    // large group is expensive, so it should not be repeated for every part)
+    let mut files: Vec<Vec<Vec<&Rep>>> = vec![];
+    let mut cur_file: Vec<Vec<&Rep>> = vec![];
+    let mut cur_reps = 0;
+    for part in parts_reps {
+        if !cur_file.is_empty() && (cur_file.len() >= FILE_PARTS || cur_reps + part.len() > FILE_REPS) {
+            files.push(std::mem::take(&mut cur_file));
+            cur_reps = 0;
+        }
+        cur_reps += part.len();
+        cur_file.push(part);
+    }
+    if !cur_file.is_empty() {
+        files.push(cur_file);
+    }
     let mut parts: Vec<(Part, String)> = vec![];
-    for (j, file) in parts_reps.chunks(FILE_PARTS).enumerate() {
+    for (j, file) in files.iter().enumerate() {
         let seg_module = format!("{}.S{}", cls_module, j);
         let seg_ns = format!("S{}", j);
         let mut c = file_prelude(&[defs_module.clone()], "Generated certificate segment; see `certgen`.");
         writeln!(c, "namespace {}\n\nopen RACert RACert.Problem\n\nnamespace {}\n", cls_ns, seg_ns).unwrap();
-        let mut items: Vec<(Part, String)> = vec![];
+        let lo = if j == 0 { 0 } else { file[0][0].alpha };
+        let hi = if j + 1 == files.len() { top } else { files[j + 1][0][0].alpha };
+        let (mut om, mut w) = (0u128, 0u128);
+        let mut sum_proof = String::new();
+        let mut seg_expr = String::new();
+        for (i, seg) in file.iter().enumerate().rev() {
+            let proof = format!("sumEvE_sum check rows elimOK flatOK sumOK{}", i);
+            sum_proof = if sum_proof.is_empty() { proof } else { format!("({}).append ({})", proof, sum_proof) };
+            seg_expr = if seg_expr.is_empty() { format!("seg{}", i) } else { format!("seg{} ++ ({})", i, seg_expr) };
+            let _ = seg;
+        }
         for (i, seg) in file.iter().enumerate() {
-            let pi = j * FILE_PARTS + i;
-            let lo = if pi == 0 { 0 } else { seg[0].alpha };
-            let hi = if pi + 1 == nparts { top } else { parts_reps[pi + 1][0].alpha };
-            let om: u128 = seg.iter().map(|r| r.m as u128).sum();
-            let w: u128 = seg.iter().map(|r| r.m as u128 * val_of.get(&r.alpha).cloned().unwrap_or(0) as u128).sum();
+            let wi: u128 = seg.iter().map(|r| r.m as u128 * val_of.get(&r.alpha).cloned().unwrap_or(0) as u128).sum();
+            om += seg.iter().map(|r| r.m as u128).sum::<u128>();
+            w += wi;
             let seg_s: Vec<String> = seg.iter().map(|r| format!("({}, {})", r.alpha, r.m)).collect();
             // evidence, without the trailing evaluated leaves
             let mut ev: Vec<usize> = seg.iter().map(|r| match r.dead { None => 0, Some(x) => quad_index[&x] + 1 }).collect();
@@ -511,20 +537,19 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
             }
             writeln!(c, "/-- Orbit minima `(α, orbit size)`, part {}. -/\ndef seg{} : List (ℕ × ℕ) :=\n  [{}]\n", i, i, seg_s.join(", ")).unwrap();
             writeln!(c, "/-- Evidence: `i + 1` for a leaf killed by the `i`-th quadruple of `qmFlat`, `0` (or nothing) for an\nevaluated leaf. -/\ndef ev{} : List ℕ := {}\n", i, list(&ev)).unwrap();
-            writeln!(c, "theorem segOK{} : checkSeg {} perms {} {} seg{} = true := by decide +kernel\n", i, t, lo, hi, i).unwrap();
-            writeln!(c, "theorem sumOK{} : P.sumEvE {} {} qt ow qmFlat seg{} ev{} 0 {} = true := by decide +kernel\n", i, b, m, i, i, w).unwrap();
-            writeln!(
-                c,
-                "theorem part{} : OrbitSeg {} perms (P.leaf {}) {} {} {} {} :=\n  OrbitSeg.of_check segOK{} (by decide +kernel) (sumEvE_sum check rows elimOK flatOK sumOK{})\n",
-                i, t, bs, lo, hi, om, w, i, i
-            )
-            .unwrap();
-            items.push((Part { lo, hi, m: om, w, name: format!("part{}", i) }, String::new()));
+            writeln!(c, "theorem sumOK{} : P.sumEvE {} {} qt ow qmFlat seg{} ev{} 0 {} = true := by decide +kernel\n", i, b, m, i, i, wi).unwrap();
         }
-        let part = combine(&items, &bs, t, &mut c, "total");
+        writeln!(c, "/-- All orbit minima of this file. -/\ndef seg : List (ℕ × ℕ) := {}\n", seg_expr).unwrap();
+        writeln!(c, "theorem segOK : checkSeg {} perms {} {} seg = true := by decide +kernel\n", t, lo, hi).unwrap();
+        writeln!(
+            c,
+            "theorem total : OrbitSeg {} perms (P.leaf {}) {} {} {} {} :=\n  OrbitSeg.of_checkSum segOK (by decide +kernel)\n    ({})\n    (by decide +kernel)\n",
+            t, bs, lo, hi, om, w, sum_proof
+        )
+        .unwrap();
         writeln!(c, "end {}\n\nend {}", seg_ns, cls_ns).unwrap();
         write_file(&ctx.path_of(&seg_module), &c);
-        parts.push((Part { name: format!("{}.total", seg_ns), ..part }, seg_module));
+        parts.push((Part { lo, hi, m: om, w, name: format!("{}.total", seg_ns) }, seg_module));
     }
     let mut body = String::new();
     let (part, imports) = emit_parts(ctx, &cls_ns, &defs_module, &cls_module, &bs, t, parts, &mut body, "total");

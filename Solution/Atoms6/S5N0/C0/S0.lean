@@ -30,16 +30,17 @@ def seg0 : List (ℕ × ℕ) :=
 evaluated leaf. -/
 def ev0 : List ℕ := [0, 0, 0, 0, 0, 12, 12, 12, 12, 12]
 
-theorem segOK0 : checkSeg 10 perms 0 1024 seg0 = true := by decide +kernel
-
 theorem sumOK0 : P.sumEvE 20 5 qt ow qmFlat seg0 ev0 0 454897503 = true := by decide +kernel
 
-theorem part0 : OrbitSeg 10 perms (P.leaf (20 + 5)) 0 1024 1024 454897503 :=
-  OrbitSeg.of_check segOK0 (by decide +kernel) (sumEvE_sum check rows elimOK flatOK sumOK0)
+/-- All orbit minima of this file. -/
+def seg : List (ℕ × ℕ) := seg0
+
+theorem segOK : checkSeg 10 perms 0 1024 seg = true := by decide +kernel
 
 theorem total : OrbitSeg 10 perms (P.leaf (20 + 5)) 0 1024 1024 454897503 :=
-  OrbitSeg.cast (part0)
-    (by decide +kernel) (by decide +kernel)
+  OrbitSeg.of_checkSum segOK (by decide +kernel)
+    (sumEvE_sum check rows elimOK flatOK sumOK0)
+    (by decide +kernel)
 
 end S0
 

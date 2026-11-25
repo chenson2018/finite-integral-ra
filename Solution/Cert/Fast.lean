@@ -11,16 +11,18 @@ public import Solution.Cert.Popcount
 public import Solution.Cert.Sym
 
 /-!
-# A leaf evaluator sharing work between leaves
+# The sides of the associativity conditions as tables
 
-`Problem.leaf` evaluates the formula on tables computed from the assignment `α` of the high
-variables, so that the kernel sees different expressions for different `α` even when they denote
-the same table. `Problem.leafS` computes the same number, but first classifies every class code
-as false, true or a low variable (`kindOf`) and then builds the tables as expressions in the
-truth-table columns `pat b j` only. It is written in continuation-passing style, so that these
-expressions are passed along in a canonical form: the kernel then evaluates each distinct
-expression once per declaration, and leaves checked in the same declaration (`checkLeaves`) share
-most of their big-number operations.
+For an assignment `α` of the high variables, every class code is false, true or a low variable
+(`kindOf`), and the two sides of the condition of a quadruple become tables in the truth-table
+columns `pat b j` of the low variables (`dotD`, `Problem.dotRL`, `Problem.dotRR`), with the
+constants represented by sentinels. `Problem.quadD_spec` relates them to the condition.
+
+A side only depends on the high variables of the terms that can contribute to it
+(`Problem.coversQuad`, `Problem.dotR_land`). This is what the evaluator of
+`Solution/Cert/Elim.lean` builds on; the functions of this file are used directly to recognise
+leaves that vanish because the two sides of a condition are opposite constants
+(`Problem.deadR`).
 -/
 
 @[expose] public section
@@ -356,78 +358,14 @@ namespace Problem
 variable (P : Problem)
 
 /-- Add the violations of the quadruple `(r, u, t, p)` to `bad`. -/
-noncomputable def quadK4 (T on b : ℕ) (krows : List (List (List ℕ))) (r u t p bad : ℕ)
-    (k : ℕ → ℕ) : ℕ :=
-  dotK T b (rowAt krows (cvN P.s r) p) (rowAt krows u t) 0 fun L =>
-    dotK T b (rowAt krows r u) (rowAt krows p (cvN P.s t)) 0 fun R =>
-      k (badS bad (neqS T on L R))
-
-/-- The value passed on by `quadK4`. -/
 noncomputable def quadD4 (T on b : ℕ) (krows : List (List (List ℕ))) (r u t p bad : ℕ) : ℕ :=
   badS bad (neqS T on (dotD T b (rowAt krows (cvN P.s r) p) (rowAt krows u t) 0)
     (dotD T b (rowAt krows r u) (rowAt krows p (cvN P.s t)) 0))
 
-theorem quadK4_eq (T on b : ℕ) (krows : List (List (List ℕ))) (r u t p bad : ℕ) (k : ℕ → ℕ) :
-    P.quadK4 T on b krows r u t p bad k = k (P.quadD4 T on b krows r u t p bad) := by
-  unfold quadK4 quadD4
-  rw [dotK_eq, dotK_eq]
-
 /-- Add the violations of the quadruple with code `x` to `bad`. -/
-noncomputable def quadK (T on b : ℕ) (krows : List (List (List ℕ))) (x bad : ℕ) (k : ℕ → ℕ) : ℕ :=
-  P.quadK4 T on b krows (Nat.mod (Nat.div (Nat.div (Nat.div x P.k) P.k) P.k) P.k)
-    (Nat.mod (Nat.div (Nat.div x P.k) P.k) P.k) (Nat.mod (Nat.div x P.k) P.k) (Nat.mod x P.k) bad k
-
-/-- The value passed on by `quadK`. -/
 noncomputable def quadD (T on b : ℕ) (krows : List (List (List ℕ))) (x bad : ℕ) : ℕ :=
   P.quadD4 T on b krows (x / P.k / P.k / P.k % P.k) (x / P.k / P.k % P.k) (x / P.k % P.k)
     (x % P.k) bad
-
-theorem quadK_eq (T on b : ℕ) (krows : List (List (List ℕ))) (x bad : ℕ) (k : ℕ → ℕ) :
-    P.quadK T on b krows x bad k = k (P.quadD T on b krows x bad) :=
-  P.quadK4_eq T on b krows _ _ _ _ bad k
-
-/-- Accumulate the violations of all quadruples, stopping once every assignment is violated. -/
-noncomputable def evalK (T on b : ℕ) (krows : List (List (List ℕ))) (quads : List ℕ) :
-    ℕ → (ℕ → ℕ) → ℕ :=
-  List.rec (motive := fun _ => ℕ → (ℕ → ℕ) → ℕ) (fun bad k => k bad)
-    (fun x _ ih bad k => bif Nat.beq bad on then k on
-      else P.quadK T on b krows x bad (fun bad' => ih bad' k)) quads
-
-/-- The value passed on by `evalK`. -/
-noncomputable def evalD (T on b : ℕ) (krows : List (List (List ℕ))) (quads : List ℕ) (bad : ℕ) :
-    ℕ :=
-  P.evalK T on b krows quads bad id
-
-theorem evalK_cons (T on b : ℕ) (krows : List (List (List ℕ))) (x : ℕ) (quads : List ℕ) (bad : ℕ)
-    (k : ℕ → ℕ) : P.evalK T on b krows (x :: quads) bad k =
-      bif Nat.beq bad on then k on
-      else P.quadK T on b krows x bad (fun bad' => P.evalK T on b krows quads bad' k) := rfl
-
-theorem evalK_eq (T on b : ℕ) (krows : List (List (List ℕ))) (quads : List ℕ) (bad : ℕ)
-    (k : ℕ → ℕ) : P.evalK T on b krows quads bad k = k (P.evalD T on b krows quads bad) := by
-  induction quads generalizing bad k with
-  | nil => rfl
-  | cons x quads ih =>
-    unfold evalD
-    rw [evalK_cons, evalK_cons]
-    cases Nat.beq bad on
-    · simp only [Bool.cond_false]
-      rw [quadK_eq, quadK_eq, ih, ih _ id]
-      rfl
-    · rfl
-
-theorem evalD_nil (T on b : ℕ) (krows : List (List (List ℕ))) (bad : ℕ) :
-    P.evalD T on b krows [] bad = bad := rfl
-
-theorem evalD_cons (T on b : ℕ) (krows : List (List (List ℕ))) (x : ℕ) (quads : List ℕ)
-    (bad : ℕ) : P.evalD T on b krows (x :: quads) bad =
-      bif Nat.beq bad on then on else P.evalD T on b krows quads (P.quadD T on b krows x bad) := by
-  unfold evalD
-  rw [evalK_cons]
-  cases Nat.beq bad on
-  · simp only [Bool.cond_false]
-    rw [quadK_eq, evalK_eq]
-  · rfl
 
 variable {P}
 
@@ -467,65 +405,7 @@ theorem quadD_spec (hrows : P.checkRows = true) {b α β : ℕ} (hβ : β < 2 ^ 
     cases dotB P.k (P.tbl (joinN b α β)) (x / P.k / P.k / P.k % P.k) (x / P.k / P.k % P.k)
       (x % P.k) (cvN P.s (x / P.k % P.k)) <;> rfl
 
-theorem evalD_spec (hrows : P.checkRows = true) {b α β : ℕ} (hβ : β < 2 ^ b) (quads : List ℕ)
-    {bad : ℕ} (hbad : bad < top b) :
-    P.evalD (top b) (ones b) b (krowsOf b α P.cls) quads bad < top b ∧
-      (P.evalD (top b) (ones b) b (krowsOf b α P.cls) quads bad).testBit β =
-        (bad.testBit β || quads.any fun x => !P.quadAt (joinN b α β) x) := by
-  induction quads generalizing bad with
-  | nil => exact ⟨hbad, by rw [evalD_nil]; simp⟩
-  | cons x quads ih =>
-    rw [evalD_cons]
-    by_cases hon : bad = ones b
-    · rw [beq_true hon]
-      simp only [Bool.cond_true]
-      rw [hon, testBit_ones]
-      exact ⟨ones_lt_top b, by simp [hβ]⟩
-    · rw [beq_false hon]
-      simp only [Bool.cond_false]
-      obtain ⟨hq1, hq2⟩ := quadD_spec hrows (α := α) hβ x hbad
-      obtain ⟨h1, h2⟩ := ih hq1
-      refine ⟨h1, ?_⟩
-      rw [h2, hq2, List.any_cons, Bool.or_assoc]
-
-variable (P)
-
-/-- The number of models whose high variables are given by `α`, computed with shared tables. -/
-noncomputable def leafS (b α : ℕ) : ℕ :=
-  P.evalK (top b) (ones b) b (krowsOf b α P.cls) P.quads 0
-    fun bad => popcountF b (Nat.xor (ones b) bad)
-
-variable {P}
-
-theorem leafS_eq_leaf (hrows : P.checkRows = true) {b α : ℕ} (hα : α < 2 ^ (P.V - b)) :
-    P.leafS b α = P.leaf b α := by
-  have hbad : ∀ β < 2 ^ b, _ := fun β hβ =>
-    evalD_spec hrows (α := α) hβ P.quads (top_pos b)
-  have h0 := (hbad 0 (Nat.pow_pos (by decide))).1
-  rw [leaf_eq hrows hα, leafS, evalK_eq]
-  refine popcountF_eq_card_filter_fun (xor_lt (ones_lt b) h0) (fun w => P.phi (join b α w)) ?_
-  intro β hβ
-  rw [testBit_xor, testBit_ones, (hbad β hβ).2, join_testBit, phi]
-  simp only [hβ, decide_true, Nat.zero_testBit, Bool.false_or, Bool.true_xor]
-  rw [Bool.eq_iff_iff]
-  simp [List.all_eq_true]
-
 end Problem
-
-/-! ### Memoised residuals
-
-The value of one side of a quadruple's condition only depends on the high variables occurring in
-it. Masking `α` with these variables (`m`) and passing the result on in a canonical form makes
-the expression `dotRL P b x (α &&& m)` identical for all leaves agreeing on these variables, so
-that the kernel evaluates it once per declaration. Quadruples are processed in blocks, and the
-accumulated violations of a block are again shared between leaves agreeing on the block. -/
-
-/-- Reduce a small number and pass it on as a canonical expression. -/
-noncomputable def forceK (r : ℕ) (k : ℕ → ℕ) : ℕ :=
-  Nat.rec (motive := fun _ => ℕ) (k 0) (fun n _ => k (Nat.succ n)) r
-
-theorem forceK_eq (r : ℕ) (k : ℕ → ℕ) : forceK r k = k r := by
-  cases r <;> rfl
 
 /-- The class code `c` is not a high variable outside the mask `m`. -/
 def cov (b m c : ℕ) : Bool :=
@@ -704,173 +584,6 @@ theorem dotR_land {b α : ℕ} {e : ℕ × ℕ × ℕ} (h : P.coversQuad b e = t
     rw [rowAt_krowsOf, rowAt_krowsOf, rowAt_krowsOf, rowAt_krowsOf]
     exact dotD_land h.2 0
 
-variable (P)
-
-/-- Accumulate the violations of a block of quadruples `(x, m₁, m₂)`. -/
-noncomputable def blockK (b on α : ℕ) (blk : List (ℕ × ℕ × ℕ)) : ℕ → (ℕ → ℕ) → ℕ :=
-  List.rec (motive := fun _ => ℕ → (ℕ → ℕ) → ℕ) (fun acc k => k acc)
-    (fun e _ ih acc k =>
-      forceK (Nat.land α e.2.1) fun r₁ => forceK (Nat.land α e.2.2) fun r₂ =>
-        ih (badS acc (neqS (top b) on (P.dotRL b e.1 r₁) (P.dotRR b e.1 r₂))) k) blk
-
-/-- The value passed on by `blockK`. -/
-noncomputable def blockD (b on α : ℕ) (blk : List (ℕ × ℕ × ℕ)) (acc : ℕ) : ℕ :=
-  P.blockK b on α blk acc id
-
-theorem blockK_cons (b on α : ℕ) (e : ℕ × ℕ × ℕ) (blk : List (ℕ × ℕ × ℕ)) (acc : ℕ)
-    (k : ℕ → ℕ) : P.blockK b on α (e :: blk) acc k =
-      forceK (Nat.land α e.2.1) fun r₁ => forceK (Nat.land α e.2.2) fun r₂ =>
-        P.blockK b on α blk
-          (badS acc (neqS (top b) on (P.dotRL b e.1 r₁) (P.dotRR b e.1 r₂))) k := rfl
-
-theorem blockK_eq (b on α : ℕ) (blk : List (ℕ × ℕ × ℕ)) (acc : ℕ) (k : ℕ → ℕ) :
-    P.blockK b on α blk acc k = k (P.blockD b on α blk acc) := by
-  induction blk generalizing acc k with
-  | nil => rfl
-  | cons e blk ih =>
-    unfold blockD
-    rw [blockK_cons, blockK_cons, forceK_eq, forceK_eq, forceK_eq, forceK_eq, ih, ih _ id]
-    rfl
-
-theorem blockD_nil (b on α acc : ℕ) : P.blockD b on α [] acc = acc := rfl
-
-theorem blockD_cons (b on α : ℕ) (e : ℕ × ℕ × ℕ) (blk : List (ℕ × ℕ × ℕ)) (acc : ℕ) :
-    P.blockD b on α (e :: blk) acc = P.blockD b on α blk (badS acc (neqS (top b) on
-      (P.dotRL b e.1 (Nat.land α e.2.1)) (P.dotRR b e.1 (Nat.land α e.2.2)))) := by
-  unfold blockD
-  rw [blockK_cons, forceK_eq, forceK_eq]
-
-/-- Accumulate the violations of all blocks, stopping once every assignment is violated. -/
-noncomputable def evalB (b on α : ℕ) (qm : List (List (ℕ × ℕ × ℕ))) : ℕ → (ℕ → ℕ) → ℕ :=
-  List.rec (motive := fun _ => ℕ → (ℕ → ℕ) → ℕ) (fun bad k => k bad)
-    (fun blk _ ih bad k => bif Nat.beq bad on then k on
-      else P.blockK b on α blk 0 (fun v => ih (badS bad v) k)) qm
-
-/-- The value passed on by `evalB`. -/
-noncomputable def evalBD (b on α : ℕ) (qm : List (List (ℕ × ℕ × ℕ))) (bad : ℕ) : ℕ :=
-  P.evalB b on α qm bad id
-
-theorem evalB_cons (b on α : ℕ) (blk : List (ℕ × ℕ × ℕ)) (qm : List (List (ℕ × ℕ × ℕ)))
-    (bad : ℕ) (k : ℕ → ℕ) : P.evalB b on α (blk :: qm) bad k =
-      bif Nat.beq bad on then k on
-      else P.blockK b on α blk 0 (fun v => P.evalB b on α qm (badS bad v) k) := rfl
-
-theorem evalB_eq (b on α : ℕ) (qm : List (List (ℕ × ℕ × ℕ))) (bad : ℕ) (k : ℕ → ℕ) :
-    P.evalB b on α qm bad k = k (P.evalBD b on α qm bad) := by
-  induction qm generalizing bad k with
-  | nil => rfl
-  | cons blk qm ih =>
-    unfold evalBD
-    rw [evalB_cons, evalB_cons]
-    cases Nat.beq bad on
-    · simp only [Bool.cond_false]
-      rw [blockK_eq, blockK_eq, ih, ih _ id]
-      rfl
-    · rfl
-
-theorem evalBD_nil (b on α bad : ℕ) : P.evalBD b on α [] bad = bad := rfl
-
-theorem evalBD_cons (b on α : ℕ) (blk : List (ℕ × ℕ × ℕ)) (qm : List (List (ℕ × ℕ × ℕ)))
-    (bad : ℕ) : P.evalBD b on α (blk :: qm) bad =
-      bif Nat.beq bad on then on
-      else P.evalBD b on α qm (badS bad (P.blockD b on α blk 0)) := by
-  unfold evalBD
-  rw [evalB_cons]
-  cases Nat.beq bad on
-  · simp only [Bool.cond_false]
-    rw [blockK_eq, evalB_eq]
-  · rfl
-
-/-- The certificate for the memoised evaluation: the blocks `qm` list the quadruples of the
-problem, each with masks selecting the high variables of its two sides. -/
-noncomputable def checkQM (b : ℕ) (qm : List (List (ℕ × ℕ × ℕ))) : Bool :=
-  listBeq (qm.flatten.map Prod.fst) P.quads && qm.all fun blk => blk.all (P.coversQuad b)
-
-variable {P}
-
-theorem blockD_spec (hrows : P.checkRows = true) {b α β : ℕ} (hβ : β < 2 ^ b)
-    (blk : List (ℕ × ℕ × ℕ)) (hblk : blk.all (P.coversQuad b) = true) {acc : ℕ}
-    (hacc : acc < top b) :
-    P.blockD b (ones b) α blk acc < top b ∧
-      (P.blockD b (ones b) α blk acc).testBit β =
-        (acc.testBit β || blk.any fun e => !P.quadAt (joinN b α β) e.1) := by
-  induction blk generalizing acc with
-  | nil => exact ⟨hacc, by rw [blockD_nil]; simp⟩
-  | cons e blk ih =>
-    rw [List.all_cons, Bool.and_eq_true] at hblk
-    obtain ⟨e1, e2⟩ := dotR_land (α := α) hblk.1
-    rw [blockD_cons, e1, e2, ← quadD_eq_dotR]
-    obtain ⟨hq1, hq2⟩ := quadD_spec hrows (α := α) hβ e.1 hacc
-    obtain ⟨h1, h2⟩ := ih hblk.2 hq1
-    refine ⟨h1, ?_⟩
-    rw [h2, hq2, List.any_cons, Bool.or_assoc]
-
-theorem evalBD_spec (hrows : P.checkRows = true) {b α β : ℕ} (hβ : β < 2 ^ b)
-    (qm : List (List (ℕ × ℕ × ℕ))) (hqm : (qm.all fun blk => blk.all (P.coversQuad b)) = true)
-    {bad : ℕ} (hbad : bad < top b) :
-    P.evalBD b (ones b) α qm bad < top b ∧
-      (P.evalBD b (ones b) α qm bad).testBit β =
-        (bad.testBit β || (qm.flatten.map Prod.fst).any fun x => !P.quadAt (joinN b α β) x) := by
-  induction qm generalizing bad with
-  | nil => exact ⟨hbad, by rw [evalBD_nil]; simp⟩
-  | cons blk qm ih =>
-    rw [List.all_cons, Bool.and_eq_true] at hqm
-    rw [evalBD_cons]
-    by_cases hon : bad = ones b
-    · rw [beq_true hon]
-      simp only [Bool.cond_true]
-      rw [hon, testBit_ones]
-      exact ⟨ones_lt_top b, by simp [hβ]⟩
-    · rw [beq_false hon]
-      simp only [Bool.cond_false]
-      obtain ⟨hb1, hb2⟩ := blockD_spec hrows (α := α) hβ blk hqm.1 (top_pos b)
-      obtain ⟨hs1, hs2⟩ := badS_spec hbad hb1 β
-      obtain ⟨h1, h2⟩ := ih hqm.2 hs1
-      refine ⟨h1, ?_⟩
-      rw [h2, hs2, hb2, List.flatten_cons, List.map_append, List.any_append]
-      simp only [List.any_map, Nat.zero_testBit, Bool.false_or, Bool.or_assoc]
-      rfl
-
-variable (P)
-
-/-- The number of models whose high variables are given by `α`, computed with memoised
-residuals. -/
-noncomputable def leafR (b : ℕ) (qm : List (List (ℕ × ℕ × ℕ))) (α : ℕ) : ℕ :=
-  P.evalB b (ones b) α qm 0 fun bad => popcountF b (Nat.xor (ones b) bad)
-
-variable {P}
-
-theorem leafR_eq_leaf (hrows : P.checkRows = true) {b : ℕ} {qm : List (List (ℕ × ℕ × ℕ))}
-    (hqm : P.checkQM b qm = true) {α : ℕ} (hα : α < 2 ^ (P.V - b)) :
-    P.leafR b qm α = P.leaf b α := by
-  rw [checkQM, Bool.and_eq_true] at hqm
-  have hquads := listBeq_eq hqm.1
-  have hbad : ∀ β < 2 ^ b, _ := fun β hβ =>
-    evalBD_spec hrows (α := α) hβ qm hqm.2 (top_pos b)
-  have h0 := (hbad 0 (Nat.pow_pos (by decide))).1
-  rw [leaf_eq hrows hα, leafR, evalB_eq]
-  refine popcountF_eq_card_filter_fun (xor_lt (ones_lt b) h0) (fun w => P.phi (join b α w)) ?_
-  intro β hβ
-  rw [testBit_xor, testBit_ones, (hbad β hβ).2, hquads, join_testBit, phi]
-  simp only [hβ, decide_true, Nat.zero_testBit, Bool.false_or, Bool.true_xor]
-  rw [Bool.eq_iff_iff]
-  simp [List.all_eq_true]
-
-/-- Check the values of a list of leaves `(α, value)` with the memoised evaluator. -/
-noncomputable def checkLeavesR (P : Problem) (b : ℕ) (qm : List (List (ℕ × ℕ × ℕ))) :
-    List (ℕ × ℕ) → Bool
-  | [] => true
-  | e :: es =>
-    Nat.blt e.1 (2 ^ (P.V - b)) && (Nat.beq (P.leafR b qm e.1) e.2 && checkLeavesR P b qm es)
-
-theorem checkLeavesR_spec (hrows : P.checkRows = true) {b : ℕ} {qm : List (List (ℕ × ℕ × ℕ))}
-    (hqm : P.checkQM b qm = true) :
-    ∀ {live : List (ℕ × ℕ)}, P.checkLeavesR b qm live = true → LiveProofs P b live
-  | [], _ => trivial
-  | e :: es, h => by
-    rw [checkLeavesR, Bool.and_eq_true, Bool.and_eq_true, Nat.blt_eq, Nat.beq_eq] at h
-    exact ⟨(leafR_eq_leaf hrows hqm h.1).symm.trans h.2.1, checkLeavesR_spec hrows hqm h.2.2⟩
-
 /-- Reduce a small number and pass it on as a canonical expression (Boolean result). -/
 noncomputable def forceB (r : ℕ) (k : ℕ → Bool) : Bool :=
   Nat.rec (motive := fun _ => Bool) (k 0) (fun n _ => k (Nat.succ n)) r
@@ -883,98 +596,6 @@ the high variables are given by `α`, evaluated on the memoised residuals. -/
 noncomputable def deadR (P : Problem) (b α : ℕ) (e : ℕ × ℕ × ℕ) : Bool :=
   forceB (Nat.land α e.2.1) fun r₁ => forceB (Nat.land α e.2.2) fun r₂ =>
     deadLR (top b) (P.dotRL b e.1 r₁) (P.dotRR b e.1 r₂)
-
-theorem leaf_deadR (hcheck : P.check = true) (hrows : P.checkRows = true) {b α : ℕ}
-    {e : ℕ × ℕ × ℕ} (hcov : P.coversQuad b e = true) (hα : α < 2 ^ (P.V - b))
-    (hdead : P.deadR b α e = true) : P.leaf b α = 0 := by
-  have hk := numAtoms_pos P.s P.n
-  have hm : ∀ y, y % P.k < P.k := fun y => Nat.mod_lt _ hk
-  obtain ⟨e1, e2⟩ := dotR_land (α := α) hcov
-  rw [deadR, forceB_eq, forceB_eq, e1, e2] at hdead
-  rw [leaf_eq hrows hα, Finset.card_eq_zero, Finset.filter_eq_empty_iff]
-  intro w _ hphi
-  have hβ : Nat.ofBits w < 2 ^ b := Nat.ofBits_lt_two_pow w
-  have hw : (fun i : Fin b => (Nat.ofBits w).testBit i) = w := by
-    funext i
-    exact Nat.testBit_ofBits_lt w i i.isLt
-  have hj : joinN b α (Nat.ofBits w) = join b α w := by rw [← join_testBit, hw]
-  obtain ⟨-, hL⟩ := dotD_rows_spec hrows (α := α) hβ (cvN_lt (hm (e.1 / P.k / P.k / P.k)))
-    (hm e.1) (hm (e.1 / P.k / P.k)) (hm (e.1 / P.k))
-  obtain ⟨-, hR⟩ := dotD_rows_spec hrows (α := α) hβ (hm (e.1 / P.k / P.k / P.k))
-    (hm (e.1 / P.k / P.k)) (hm e.1) (cvN_lt (hm (e.1 / P.k)))
-  have hq := quadB_of_phi hcheck hphi (hm (e.1 / P.k / P.k / P.k)) (hm (e.1 / P.k / P.k))
-    (hm (e.1 / P.k)) (hm e.1)
-  rw [quadB, beq_iff_eq, ← hj, ← hL, ← hR] at hq
-  have hT := top_pos b
-  rw [deadLR, Bool.or_eq_true, Bool.and_eq_true, Bool.and_eq_true, Nat.beq_eq, Nat.beq_eq,
-    Nat.beq_eq, Nat.beq_eq] at hdead
-  rcases hdead with ⟨h1, h2⟩ | ⟨h1, h2⟩
-  · rw [dotRL_eq] at h1
-    rw [dotRR_eq] at h2
-    rw [h1, h2, sem_top, sem_zero hT] at hq
-    exact Bool.noConfusion hq
-  · rw [dotRL_eq] at h1
-    rw [dotRR_eq] at h2
-    rw [h1, h2, sem_top, sem_zero hT] at hq
-    exact Bool.noConfusion hq
-
-/-- Like `checkEv`, with the vanishing leaves checked on memoised residuals: evidence `i + 1`
-refers to the `i`-th entry of `flat`. -/
-noncomputable def checkEvR (P : Problem) (b : ℕ) (flat : List (ℕ × ℕ × ℕ)) :
-    List (ℕ × ℕ) → List ℕ → List (ℕ × ℕ) → ℕ → ℕ → Bool
-  | [], [], [], acc, W => Nat.beq acc W
-  | e :: seg, 0 :: ev, l :: live, acc, W =>
-    Nat.beq e.1 l.1 && checkEvR P b flat seg ev live (Nat.add acc (Nat.mul e.2 l.2)) W
-  | e :: seg, (i + 1) :: ev, live, acc, W =>
-    Nat.blt e.1 (2 ^ (P.V - b)) && (Nat.blt i flat.length &&
-      (P.deadR b e.1 (nth (0, 0, 0) flat i) && checkEvR P b flat seg ev live acc W))
-  | _, _, _, _, _ => false
-
-theorem checkEvR_spec (hcheck : P.check = true) (hrows : P.checkRows = true) {b : ℕ}
-    {flat : List (ℕ × ℕ × ℕ)} (hflat : flat.all (P.coversQuad b) = true) :
-    ∀ {seg : List (ℕ × ℕ)} {ev : List ℕ} {live : List (ℕ × ℕ)} {acc W : ℕ},
-      P.checkEvR b flat seg ev live acc W = true → LiveProofs P b live →
-      acc + (seg.map fun e => e.2 * P.leaf b e.1).sum = W
-  | [], [], [], acc, W, h, _ => by
-    rw [checkEvR, Nat.beq_eq] at h
-    simpa using h
-  | e :: seg, 0 :: ev, l :: live, acc, W, h, hl => by
-    rw [checkEvR, Bool.and_eq_true, Nat.beq_eq] at h
-    have ih := checkEvR_spec hcheck hrows hflat h.2 hl.2
-    rw [List.map_cons, List.sum_cons, h.1, hl.1, ← Nat.add_assoc]
-    exact ih
-  | e :: seg, (i + 1) :: ev, live, acc, W, h, hl => by
-    rw [checkEvR, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true, Nat.blt_eq,
-      Nat.blt_eq] at h
-    have ih := checkEvR_spec hcheck hrows hflat h.2.2.2 hl
-    have hcov := List.all_eq_true.mp hflat _ (nth_mem (0, 0, 0) h.2.1)
-    rw [List.map_cons, List.sum_cons, leaf_deadR hcheck hrows hcov h.1 h.2.2.1, Nat.mul_zero,
-      Nat.zero_add]
-    exact ih
-  | [], [], _ :: _, _, _, h, _ => by simp [checkEvR] at h
-  | [], _ :: _, _, _, _, h, _ => by simp [checkEvR] at h
-  | _ :: _, [], _, _, _, h, _ => by simp [checkEvR] at h
-  | _ :: _, 0 :: _, [], _, _, h, _ => by simp [checkEvR] at h
-
-theorem checkEvR_sum (hcheck : P.check = true) (hrows : P.checkRows = true) {b : ℕ}
-    {flat : List (ℕ × ℕ × ℕ)} (hflat : flat.all (P.coversQuad b) = true) {seg : List (ℕ × ℕ)}
-    {ev : List ℕ} {live : List (ℕ × ℕ)} {W : ℕ} (h : P.checkEvR b flat seg ev live 0 W = true)
-    (hl : LiveProofs P b live) : (seg.map fun e => e.2 * P.leaf b e.1).sum = W := by
-  have := checkEvR_spec hcheck hrows hflat h hl
-  rwa [Nat.zero_add] at this
-
-/-- Check the values of a list of leaves `(α, value)`. -/
-noncomputable def checkLeaves (P : Problem) (b : ℕ) : List (ℕ × ℕ) → Bool
-  | [] => true
-  | e :: es =>
-    Nat.blt e.1 (2 ^ (P.V - b)) && (Nat.beq (P.leafS b e.1) e.2 && checkLeaves P b es)
-
-theorem checkLeaves_spec (hrows : P.checkRows = true) {b : ℕ} :
-    ∀ {live : List (ℕ × ℕ)}, P.checkLeaves b live = true → LiveProofs P b live
-  | [], _ => trivial
-  | e :: es, h => by
-    rw [checkLeaves, Bool.and_eq_true, Bool.and_eq_true, Nat.blt_eq, Nat.beq_eq] at h
-    exact ⟨(leafS_eq_leaf hrows h.1).symm.trans h.2.1, checkLeaves_spec hrows h.2.2⟩
 
 end Problem
 

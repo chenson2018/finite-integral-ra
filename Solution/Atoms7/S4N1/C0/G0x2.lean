@@ -86,7 +86,7 @@ open RACert RACert.Problem
 
 namespace G0x2
 
-theorem total : OrbitSeg 26 perms (P.leaf (20 + 4)) 8375933 67108535 12896310 1796830902881 :=
+theorem total : OrbitSeg 26 perms (P.leaf (20 + 4)) 5742488 7990973 16307952 207333195588 :=
   OrbitSeg.cast ((S128.total).append ((S129.total).append ((S130.total).append ((S131.total).append ((S132.total).append ((S133.total).append ((S134.total).append ((S135.total).append ((S136.total).append ((S137.total).append ((S138.total).append ((S139.total).append ((S140.total).append ((S141.total).append ((S142.total).append ((S143.total).append ((S144.total).append ((S145.total).append ((S146.total).append ((S147.total).append ((S148.total).append ((S149.total).append ((S150.total).append ((S151.total).append ((S152.total).append ((S153.total).append ((S154.total).append ((S155.total).append ((S156.total).append ((S157.total).append ((S158.total).append ((S159.total).append ((S160.total).append ((S161.total).append ((S162.total).append ((S163.total).append ((S164.total).append ((S165.total).append ((S166.total).append ((S167.total).append ((S168.total).append ((S169.total).append ((S170.total).append ((S171.total).append ((S172.total).append ((S173.total).append ((S174.total).append ((S175.total).append ((S176.total).append ((S177.total).append ((S178.total).append ((S179.total).append ((S180.total).append ((S181.total).append ((S182.total).append ((S183.total).append ((S184.total).append ((S185.total).append ((S186.total).append ((S187.total).append ((S188.total).append ((S189.total).append ((S190.total).append (S191.total))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
     (by decide +kernel) (by decide +kernel)
 

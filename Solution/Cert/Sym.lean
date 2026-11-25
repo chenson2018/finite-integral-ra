@@ -14,9 +14,8 @@ public import Solution.Cert.Eval
 A permutation of the atoms which respects the classes of a `Problem` induces a permutation of its
 variables under which the set of models is invariant. If this permutation preserves the split into
 low and high variables, then the leaf of an assignment of the high variables only depends on its
-orbit. This file proves that invariance (`Problem.card_models_le_of_symF`), and the criterion
-`Problem.leaf_dead` for a leaf to vanish because one associativity condition is already violated
-by the high variables alone.
+orbit. This file proves that invariance (`Problem.SymF.leaf_eq`) and provides the checker
+`Problem.checkSyms` for a list of symmetries.
 -/
 
 @[expose] public section
@@ -206,62 +205,6 @@ theorem SymF.card_models_le {b : ℕ} {f g π ρ : ℕ → ℕ} (h : P.check = t
 noncomputable def deadLR (T L R : ℕ) : Bool :=
   (Nat.beq L T && Nat.beq R 0) || (Nat.beq L 0 && Nat.beq R T)
 
-/-- The associativity condition of the quadruple `(r, u, t, p)` is violated for every assignment
-of the low variables, the high variables being given by `α`. -/
-noncomputable def deadAt4 (P : Problem) (b α r u t p : ℕ) : Bool :=
-  deadLR (top b)
-    (dot (top b) (rowAt (rowsOf (top b) (varTabs b (Nat.sub P.V b) α) P.cls) (cvN P.s r) p)
-      (rowAt (rowsOf (top b) (varTabs b (Nat.sub P.V b) α) P.cls) u t) 0)
-    (dot (top b) (rowAt (rowsOf (top b) (varTabs b (Nat.sub P.V b) α) P.cls) r u)
-      (rowAt (rowsOf (top b) (varTabs b (Nat.sub P.V b) α) P.cls) p (cvN P.s t)) 0)
-
-/-- The associativity condition of the quadruple with code `x` is violated for every assignment
-of the low variables, the high variables being given by `α`. -/
-noncomputable def deadAt (P : Problem) (b α x : ℕ) : Bool :=
-  P.deadAt4 b α (Nat.mod (Nat.div (Nat.div (Nat.div x P.k) P.k) P.k) P.k)
-    (Nat.mod (Nat.div (Nat.div x P.k) P.k) P.k) (Nat.mod (Nat.div x P.k) P.k) (Nat.mod x P.k)
-
-theorem deadAt_eq (P : Problem) (b α x : ℕ) :
-    P.deadAt b α x = P.deadAt4 b α (x / P.k / P.k / P.k % P.k) (x / P.k / P.k % P.k)
-      (x / P.k % P.k) (x % P.k) := rfl
-
-/-- A leaf vanishes when some associativity condition is violated by the high variables alone. -/
-theorem leaf_dead (hcheck : P.check = true) (hrows : P.checkRows = true) {b α x : ℕ}
-    (hα : α < 2 ^ (P.V - b)) (hdead : P.deadAt b α x = true) : P.leaf b α = 0 := by
-  have hk := numAtoms_pos P.s P.n
-  have hm : ∀ y, y % P.k < P.k := fun y => Nat.mod_lt _ hk
-  rw [leaf_eq hrows hα, Finset.card_eq_zero, Finset.filter_eq_empty_iff]
-  intro w _ hphi
-  have hβ : Nat.ofBits w < 2 ^ b := Nat.ofBits_lt_two_pow w
-  have hw : (fun i : Fin b => (Nat.ofBits w).testBit i) = w := by
-    funext i
-    exact Nat.testBit_ofBits_lt w i i.isLt
-  have hgood := goodVt_varTabs hα hβ
-  rw [← join_testBit, hw] at hgood
-  obtain ⟨-, hL⟩ := dot_rows_spec hrows hgood (cvN_lt (hm (x / P.k / P.k / P.k))) (hm x)
-    (hm (x / P.k / P.k)) (hm (x / P.k))
-  obtain ⟨-, hR⟩ := dot_rows_spec hrows hgood (hm (x / P.k / P.k / P.k)) (hm (x / P.k / P.k))
-    (hm x) (cvN_lt (hm (x / P.k)))
-  have hq := quadB_of_phi hcheck hphi (hm (x / P.k / P.k / P.k)) (hm (x / P.k / P.k))
-    (hm (x / P.k)) (hm x)
-  rw [quadB, beq_iff_eq, ← hL, ← hR] at hq
-  have hT := top_pos b
-  rw [deadAt_eq, deadAt4, deadLR, Bool.or_eq_true, Bool.and_eq_true, Bool.and_eq_true, Nat.beq_eq,
-    Nat.beq_eq, Nat.beq_eq, Nat.beq_eq] at hdead
-  rcases hdead with ⟨h1, h2⟩ | ⟨h1, h2⟩
-  · have h1' : dot (top b) (rowAt (rowsOf (top b) (varTabs b (P.V - b) α) P.cls) _ _)
-        (rowAt (rowsOf (top b) (varTabs b (P.V - b) α) P.cls) _ _) 0 = top b := h1
-    have h2' : dot (top b) (rowAt (rowsOf (top b) (varTabs b (P.V - b) α) P.cls) _ _)
-        (rowAt (rowsOf (top b) (varTabs b (P.V - b) α) P.cls) _ _) 0 = 0 := h2
-    rw [h1', h2', sem_top, sem_zero hT] at hq
-    exact Bool.noConfusion hq
-  · have h1' : dot (top b) (rowAt (rowsOf (top b) (varTabs b (P.V - b) α) P.cls) _ _)
-        (rowAt (rowsOf (top b) (varTabs b (P.V - b) α) P.cls) _ _) 0 = 0 := h1
-    have h2' : dot (top b) (rowAt (rowsOf (top b) (varTabs b (P.V - b) α) P.cls) _ _)
-        (rowAt (rowsOf (top b) (varTabs b (P.V - b) α) P.cls) _ _) 0 = top b := h2
-    rw [h1', h2', sem_top, sem_zero hT] at hq
-    exact Bool.noConfusion hq
-
 /-- Two assignments of the high variables related by a symmetry have the same leaf. -/
 theorem SymF.leaf_eq {b : ℕ} {f g π ρ : ℕ → ℕ} (hcheck : P.check = true)
     (hrows : P.checkRows = true) (hb : b ≤ P.V) (F : SymF P b f g π ρ) {α α' : ℕ}
@@ -382,55 +325,6 @@ theorem checkSyms_spec {b : ℕ} : ∀ {syms : List Sym} {perms : List (List ℕ
     · exact checkSyms_spec h.2 e he'
   | [], _ :: _, h, _, _ => by simp [checkSyms] at h
   | _ :: _, [], h, _, _ => by simp [checkSyms] at h
-
-/-- Proofs of the values of the listed leaves. -/
-def LiveProofs (P : Problem) (b : ℕ) : List (ℕ × ℕ) → Prop
-  | [] => True
-  | e :: es => P.leaf b e.1 = e.2 ∧ LiveProofs P b es
-
-theorem LiveProofs.nil {b : ℕ} : LiveProofs P b [] := trivial
-
-theorem LiveProofs.cons {b α v : ℕ} {es : List (ℕ × ℕ)} (h : P.leaf b α = v)
-    (hs : LiveProofs P b es) : LiveProofs P b ((α, v) :: es) := ⟨h, hs⟩
-
-theorem LiveProofs.append {b : ℕ} : ∀ {l₁ l₂ : List (ℕ × ℕ)},
-    LiveProofs P b l₁ → LiveProofs P b l₂ → LiveProofs P b (l₁ ++ l₂)
-  | [], _, _, h₂ => h₂
-  | _ :: _, _, h₁, h₂ => ⟨h₁.1, LiveProofs.append h₁.2 h₂⟩
-
-/-- Evaluate the weighted sum of the leaves of a segment of orbit minima `(α, m)`: an entry with
-evidence `0` takes its value from the next element of `live`, an entry with evidence `x + 1` is
-checked to vanish because of the quadruple with code `x`. The result must be `W`. -/
-noncomputable def checkEv (P : Problem) (b : ℕ) :
-    List (ℕ × ℕ) → List ℕ → List (ℕ × ℕ) → ℕ → ℕ → Bool
-  | [], [], [], acc, W => Nat.beq acc W
-  | e :: seg, 0 :: ev, l :: live, acc, W =>
-    Nat.beq e.1 l.1 && checkEv P b seg ev live (Nat.add acc (Nat.mul e.2 l.2)) W
-  | e :: seg, (x + 1) :: ev, live, acc, W =>
-    Nat.blt e.1 (2 ^ (P.V - b)) && (P.deadAt b e.1 x && checkEv P b seg ev live acc W)
-  | _, _, _, _, _ => false
-
-theorem checkEv_spec (hcheck : P.check = true) (hrows : P.checkRows = true) {b : ℕ} :
-    ∀ {seg : List (ℕ × ℕ)} {ev : List ℕ} {live : List (ℕ × ℕ)} {acc W : ℕ},
-      P.checkEv b seg ev live acc W = true → LiveProofs P b live →
-      acc + (seg.map fun e => e.2 * P.leaf b e.1).sum = W
-  | [], [], [], acc, W, h, _ => by
-    rw [checkEv, Nat.beq_eq] at h
-    simpa using h
-  | e :: seg, 0 :: ev, l :: live, acc, W, h, hl => by
-    rw [checkEv, Bool.and_eq_true, Nat.beq_eq] at h
-    have ih := checkEv_spec hcheck hrows h.2 hl.2
-    rw [List.map_cons, List.sum_cons, h.1, hl.1, ← Nat.add_assoc]
-    exact ih
-  | e :: seg, (x + 1) :: ev, live, acc, W, h, hl => by
-    rw [checkEv, Bool.and_eq_true, Bool.and_eq_true, Nat.blt_eq] at h
-    have ih := checkEv_spec hcheck hrows h.2.2 hl
-    rw [List.map_cons, List.sum_cons, leaf_dead hcheck hrows h.1 h.2.1, Nat.mul_zero, Nat.zero_add]
-    exact ih
-  | [], [], _ :: _, _, _, h, _ => by simp [checkEv] at h
-  | [], _ :: _, _, _, _, h, _ => by simp [checkEv] at h
-  | _ :: _, [], _, _, _, h, _ => by simp [checkEv] at h
-  | _ :: _, 0 :: _, [], _, _, h, _ => by simp [checkEv] at h
 
 end Problem
 

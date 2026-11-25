@@ -7,6 +7,7 @@ Authors: Chris Henson
 module
 
 public import Solution.Cert.Side
+public import Solution.Cert.SymOrbit
 public import Solution.Cert.WPop
 
 /-!
@@ -936,7 +937,7 @@ theorem sumEvE_sum (hcheck : P.check = true) (hrows : P.checkRows = true) {b m :
     {qt : QTree} {ow : List QTree} (hel : P.checkElim b m qt ow = true)
     {flat : List (ℕ × ℕ × ℕ)} (hflat : P.checkFlat b m flat = true) {seg : List (ℕ × ℕ)}
     {ev : List ℕ} {W : ℕ} (h : P.sumEvE b m qt ow flat seg ev 0 W = true) :
-    (seg.map fun e => e.2 * P.leaf (b + m) e.1).sum = W := by
+    SegSum (P.leaf (b + m)) seg W := by
   have := sumEvE_spec hcheck hrows hel hflat h
   rwa [Nat.zero_add] at this
 

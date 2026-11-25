@@ -30,12 +30,7 @@ def seg0 : List (ℕ × ℕ) :=
 evaluated leaf. -/
 def ev0 : List ℕ := [0, 0, 0, 0, 0, 0, 0, 0, 83, 83, 0, 0, 0, 0, 84, 84, 0, 0, 0, 0, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 69, 69, 69, 69, 69, 69, 0, 0, 84, 84, 0, 0, 0, 0, 0, 0, 0, 0, 69, 69, 69, 69, 69, 69, 78, 78, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 83, 83, 0, 0, 0, 0, 84, 84, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 83, 83, 0, 0, 0, 0, 84, 84, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 83, 83, 8, 8, 8, 8, 8, 8, 84, 84, 87, 87, 8, 8, 8, 8, 84, 84, 87, 87, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 0, 0, 87, 87, 81, 0, 87, 87, 81, 0, 46, 46, 46, 46, 46, 46, 46, 46, 87, 87, 84, 84, 0, 0, 81, 0, 87, 87, 84, 84, 0, 0, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 46, 46, 46, 46, 46, 46, 46, 46, 78, 78, 0, 0, 0, 0, 0, 0, 78, 78]
 
-theorem segOK0 : checkSeg 12 perms 0 378 seg0 = true := by decide +kernel
-
 theorem sumOK0 : P.sumEvE 20 2 qt ow qmFlat seg0 ev0 0 396819 = true := by decide +kernel
-
-theorem part0 : OrbitSeg 12 perms (P.leaf (20 + 2)) 0 378 744 396819 :=
-  OrbitSeg.of_check segOK0 (by decide +kernel) (sumEvE_sum check rows elimOK flatOK sumOK0)
 
 /-- Orbit minima `(α, orbit size)`, part 1. -/
 def seg1 : List (ℕ × ℕ) :=
@@ -45,12 +40,7 @@ def seg1 : List (ℕ × ℕ) :=
 evaluated leaf. -/
 def ev1 : List ℕ := [0, 0, 0, 0, 0, 0, 84, 84, 84, 84, 8, 8, 8, 8, 84, 84, 84, 84, 8, 8, 8, 8, 84, 84, 45, 45, 87, 87, 8, 8, 84, 84, 83, 83, 87, 87, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 87, 87, 84, 84, 87, 87, 81, 0, 87, 87, 84, 84, 87, 87, 81, 0, 87, 87, 45, 45, 0, 0, 81, 0, 87, 87, 83, 83, 0, 0, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0, 0, 0, 0, 79, 79, 83, 83, 0, 0, 0, 0, 79, 79, 84, 84, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 83, 83, 0, 0, 0, 0, 0, 0, 84, 84, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 0, 0, 84, 84, 84, 84, 0, 0, 0, 0, 84, 84, 84, 84, 0, 0, 0, 0, 84, 84]
 
-theorem segOK1 : checkSeg 12 perms 378 922 seg1 = true := by decide +kernel
-
 theorem sumOK1 : P.sumEvE 20 2 qt ow qmFlat seg1 ev1 0 3594804 = true := by decide +kernel
-
-theorem part1 : OrbitSeg 12 perms (P.leaf (20 + 2)) 378 922 844 3594804 :=
-  OrbitSeg.of_check segOK1 (by decide +kernel) (sumEvE_sum check rows elimOK flatOK sumOK1)
 
 /-- Orbit minima `(α, orbit size)`, part 2. -/
 def seg2 : List (ℕ × ℕ) :=
@@ -60,12 +50,7 @@ def seg2 : List (ℕ × ℕ) :=
 evaluated leaf. -/
 def ev2 : List ℕ := [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 84, 84, 84, 84, 0, 0, 0, 0, 84, 84, 84, 84, 0, 0, 0, 0, 84, 84, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78, 78, 8, 8, 8, 8, 78, 78, 83, 83, 8, 8, 8, 8, 78, 78, 83, 83, 8, 8, 78, 78, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78, 78, 83, 83, 81, 0, 78, 78, 81, 0, 87, 87, 81, 0, 78, 78, 81, 0, 81, 0, 78, 78, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 83, 83, 8, 8, 8, 8, 8, 8, 83, 83, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 87, 87, 83, 83, 81, 0, 87, 87, 81, 0, 87, 87, 81, 0, 87, 87, 81, 0, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 81]
 
-theorem segOK2 : checkSeg 12 perms 922 1545 seg2 = true := by decide +kernel
-
 theorem sumOK2 : P.sumEvE 20 2 qt ow qmFlat seg2 ev2 0 15694446 = true := by decide +kernel
-
-theorem part2 : OrbitSeg 12 perms (P.leaf (20 + 2)) 922 1545 734 15694446 :=
-  OrbitSeg.of_check segOK2 (by decide +kernel) (sumEvE_sum check rows elimOK flatOK sumOK2)
 
 /-- Orbit minima `(α, orbit size)`, part 3. -/
 def seg3 : List (ℕ × ℕ) :=
@@ -75,12 +60,7 @@ def seg3 : List (ℕ × ℕ) :=
 evaluated leaf. -/
 def ev3 : List ℕ := [0, 83, 83, 0, 0, 0, 0, 81, 0, 0, 0, 0, 0, 83, 83, 0, 0, 0, 0, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 89, 89, 83, 83, 0, 0, 89, 89, 81, 0, 0, 0, 89, 89, 83, 83, 0, 0, 89, 89, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 89, 89, 83, 83, 0, 0, 89, 89, 81, 0, 0, 0, 89, 89, 83, 83, 0, 0, 89, 89, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 89, 89, 83, 83, 0, 0, 89, 89, 81, 0, 0, 0, 89, 89, 83, 83, 0, 0, 89, 89, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78, 78, 0, 0, 81, 0, 0, 0, 78, 78, 83, 83, 81, 0, 0, 0, 78, 78, 0, 0, 81, 0, 0, 0, 78, 78, 83, 83, 81, 0, 0, 0, 78, 78]
 
-theorem segOK3 : checkSeg 12 perms 1545 1844 seg3 = true := by decide +kernel
-
 theorem sumOK3 : P.sumEvE 20 2 qt ow qmFlat seg3 ev3 0 10112864 = true := by decide +kernel
-
-theorem part3 : OrbitSeg 12 perms (P.leaf (20 + 2)) 1545 1844 702 10112864 :=
-  OrbitSeg.of_check segOK3 (by decide +kernel) (sumEvE_sum check rows elimOK flatOK sumOK3)
 
 /-- Orbit minima `(α, orbit size)`, part 4. -/
 def seg4 : List (ℕ × ℕ) :=
@@ -90,12 +70,7 @@ def seg4 : List (ℕ × ℕ) :=
 evaluated leaf. -/
 def ev4 : List ℕ := [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78, 78, 83, 83, 81, 0, 0, 0, 78, 78, 0, 0, 81, 0, 0, 0, 78, 78, 83, 83, 81, 0, 0, 0, 78, 78, 0, 0, 81, 0, 0, 0, 78, 78, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 83, 83, 83, 83, 81, 0, 0, 0, 83, 83, 0, 0, 81, 0, 0, 0, 83, 83, 83, 83, 81, 0, 0, 0, 83, 83, 0, 0, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 83, 83, 83, 83, 81, 0, 0, 0, 83, 83, 0, 0, 81, 0, 0, 0, 83, 83, 83, 83, 81, 0, 0, 0, 83, 83, 0, 0, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 78, 78]
 
-theorem segOK4 : checkSeg 12 perms 1844 3854 seg4 = true := by decide +kernel
-
 theorem sumOK4 : P.sumEvE 20 2 qt ow qmFlat seg4 ev4 0 55736144 = true := by decide +kernel
-
-theorem part4 : OrbitSeg 12 perms (P.leaf (20 + 2)) 1844 3854 836 55736144 :=
-  OrbitSeg.of_check segOK4 (by decide +kernel) (sumEvE_sum check rows elimOK flatOK sumOK4)
 
 /-- Orbit minima `(α, orbit size)`, part 5. -/
 def seg5 : List (ℕ × ℕ) :=
@@ -105,16 +80,17 @@ def seg5 : List (ℕ × ℕ) :=
 evaluated leaf. -/
 def ev5 : List ℕ := [0, 0, 78, 78, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 78, 78, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 79, 79, 0, 0, 0, 0, 79, 79, 0, 0, 0, 0, 79, 79]
 
-theorem segOK5 : checkSeg 12 perms 3854 4096 seg5 = true := by decide +kernel
-
 theorem sumOK5 : P.sumEvE 20 2 qt ow qmFlat seg5 ev5 0 43846655 = true := by decide +kernel
 
-theorem part5 : OrbitSeg 12 perms (P.leaf (20 + 2)) 3854 4096 236 43846655 :=
-  OrbitSeg.of_check segOK5 (by decide +kernel) (sumEvE_sum check rows elimOK flatOK sumOK5)
+/-- All orbit minima of this file. -/
+def seg : List (ℕ × ℕ) := seg0 ++ (seg1 ++ (seg2 ++ (seg3 ++ (seg4 ++ (seg5)))))
+
+theorem segOK : checkSeg 12 perms 0 4096 seg = true := by decide +kernel
 
 theorem total : OrbitSeg 12 perms (P.leaf (20 + 2)) 0 4096 4096 129381732 :=
-  OrbitSeg.cast ((part0).append ((part1).append ((part2).append ((part3).append ((part4).append (part5))))))
-    (by decide +kernel) (by decide +kernel)
+  OrbitSeg.of_checkSum segOK (by decide +kernel)
+    ((sumEvE_sum check rows elimOK flatOK sumOK0).append ((sumEvE_sum check rows elimOK flatOK sumOK1).append ((sumEvE_sum check rows elimOK flatOK sumOK2).append ((sumEvE_sum check rows elimOK flatOK sumOK3).append ((sumEvE_sum check rows elimOK flatOK sumOK4).append (sumEvE_sum check rows elimOK flatOK sumOK5))))))
+    (by decide +kernel)
 
 end S0
 

@@ -27,6 +27,23 @@ theorem OrbitSeg.cast {t : ℕ} {perms : List (List ℕ × List ℕ)} {F : ℕ �
   rw [← Nat.eq_of_beq_eq_true hM, ← Nat.eq_of_beq_eq_true hW]
   exact h
 
+/-- The weighted sum of the values of `F` at the orbit minima `(α, orbit size)` of `seg`. -/
+def SegSum (F : ℕ → ℕ) (seg : List (ℕ × ℕ)) (W : ℕ) : Prop :=
+  (seg.map fun e => e.2 * F e.1).sum = W
+
+theorem SegSum.append {F : ℕ → ℕ} {s₁ s₂ : List (ℕ × ℕ)} {W₁ W₂ : ℕ} (h₁ : SegSum F s₁ W₁)
+    (h₂ : SegSum F s₂ W₂) : SegSum F (s₁ ++ s₂) (W₁ + W₂) := by
+  unfold SegSum at *
+  rw [List.map_append, List.sum_append, h₁, h₂]
+
+/-- The form used by generated certificates: one check of the orbit minima of a file, whose
+weighted sum is assembled from the sums of its parts. -/
+theorem OrbitSeg.of_checkSum {t : ℕ} {perms : List (List ℕ × List ℕ)} {F : ℕ → ℕ} {lo hi : ℕ}
+    {seg : List (ℕ × ℕ)} {M W W' : ℕ} (h : checkSeg t perms lo hi seg = true)
+    (hM : Nat.beq (seg.map Prod.snd).sum M = true) (hs : SegSum F seg W')
+    (hW : Nat.beq W' W = true) : OrbitSeg t perms F lo hi M W :=
+  OrbitSeg.of_check h (Nat.eq_of_beq_eq_true hM) (hs.trans (Nat.eq_of_beq_eq_true hW))
+
 namespace Problem
 
 variable {P : Problem}
@@ -54,13 +71,6 @@ theorem leaf_actBits (hcheck : P.check = true) (hrows : P.checkRows = true) {b :
     rw [show b + (nth 0 S.vp j - b) = nth 0 S.vp j by omega, F.ρπ j hjV] at h3
     rw [testBit_actBits he, show nth 0 e.2 (nth 0 S.vp j - b) = j - b by omega]
     simp [hi]
-
-theorem checkEv_sum (hcheck : P.check = true) (hrows : P.checkRows = true) {b : ℕ}
-    {seg : List (ℕ × ℕ)} {ev : List ℕ} {live : List (ℕ × ℕ)} {W : ℕ}
-    (h : P.checkEv b seg ev live 0 W = true) (hl : LiveProofs P b live) :
-    (seg.map fun e => e.2 * P.leaf b e.1).sum = W := by
-  have := checkEv_spec hcheck hrows h hl
-  rwa [Nat.zero_add] at this
 
 /-- **Count with symmetry reduction.** The number of invariant lawful cycle sets is the weighted
 sum of the leaves over the orbit minima of the assignments of the high variables. -/
