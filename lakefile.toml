@@ -13,7 +13,7 @@ maxSynthPendingDepth = 3
 [[require]]
 name = "cslib"
 git = "https://github.com/leanprover/cslib"
-rev = "chenson2018/integral-atom-structure" # leanprover/cslib#1281
+rev = "910210f7d155e22a2244591e394bd16fbb0ddbb3"
 
 [[lean_lib]]
 name = "Challenge"
