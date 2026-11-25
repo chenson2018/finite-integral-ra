@@ -29,4 +29,3 @@ public import Solution.Atoms7.Symm2Nsymm2
 public import Solution.Atoms7.Symm4Nsymm1
 public import Solution.Atoms7.Symm6Nsymm0
 public import Solution.Atoms7.Total
-public import Solution.Atoms8.Symm1Nsymm3

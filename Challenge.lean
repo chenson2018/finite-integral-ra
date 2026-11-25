@@ -89,7 +89,4 @@ theorem encard_ofAtoms_seven : (ofAtoms 7).encard = 344809166311 := by
     mod_cast congr($(encard_ofSymmNsymm_zero_three) + $(encard_ofSymmNsymm_two_two) +
       $(encard_ofSymmNsymm_four_one) + $(encard_ofSymmNsymm_six_zero))
 
-theorem encard_ofSymmNsymm_one_three : (ofSymmNsymm 1 3).encard = 52506245239168 := by
-  sorry
-
 end Cslib.RelationAlgebra.IntegralAlgebra.IsoClass

@@ -24,8 +24,7 @@
     "Cslib.RelationAlgebra.IntegralAlgebra.IsoClass.encard_ofSymmNsymm_two_two",
     "Cslib.RelationAlgebra.IntegralAlgebra.IsoClass.encard_ofSymmNsymm_four_one",
     "Cslib.RelationAlgebra.IntegralAlgebra.IsoClass.encard_ofSymmNsymm_six_zero",
-    "Cslib.RelationAlgebra.IntegralAlgebra.IsoClass.encard_ofAtoms_seven",
-    "Cslib.RelationAlgebra.IntegralAlgebra.IsoClass.encard_ofSymmNsymm_one_three"
+    "Cslib.RelationAlgebra.IntegralAlgebra.IsoClass.encard_ofAtoms_seven"
   ],
   "permitted_axioms": [
     "propext",
