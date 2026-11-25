@@ -592,7 +592,7 @@ pub fn plan(s: usize, n: usize, bmin: usize, bmax: usize) {
     let mut seen_sizes = std::collections::HashMap::new();
     for mask in 0u64..(1 << no) {
         let sz: usize = (0..no).filter(|i| mask >> i & 1 == 1).map(|i| sizes[i]).sum();
-        if sz < bmin || sz > bmax || base.nvars - m - sz > 40 {
+        if sz < bmin || sz > bmax || base.nvars - m - sz > 44 {
             continue;
         }
         // at most a few candidates per size
