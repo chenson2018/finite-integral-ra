@@ -13,12 +13,36 @@
 mod leaf;
 mod lean;
 mod problem;
+mod symm;
 mod sys;
+mod tree;
 
 use std::path::PathBuf;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.len() >= 4 && args[1] == "stats" {
+        let s: usize = args[2].parse().unwrap();
+        let n: usize = args[3].parse().unwrap();
+        let bmax: usize = args.get(4).map(|x| x.parse().unwrap()).unwrap_or(20);
+        let ord: usize = args.get(5).map(|x| x.parse().unwrap()).unwrap_or(0);
+        lean::stats(s, n, bmax, ord);
+        return;
+    }
+    if args.len() >= 4 && args[1] == "symplan" {
+        let s: usize = args[2].parse().unwrap();
+        let n: usize = args[3].parse().unwrap();
+        let bmax: usize = args.get(4).map(|x| x.parse().unwrap()).unwrap_or(20);
+        lean::symplan(s, n, bmax);
+        return;
+    }
+    if args.len() >= 4 && args[1] == "symstats" {
+        let s: usize = args[2].parse().unwrap();
+        let n: usize = args[3].parse().unwrap();
+        let bmax: usize = args.get(4).map(|x| x.parse().unwrap()).unwrap_or(20);
+        lean::symstats(s, n, bmax);
+        return;
+    }
     if args.len() < 5 || args[1] != "gen" {
         eprintln!("usage: certgen gen <s> <n> <repo-root> [bmax]");
         std::process::exit(2);

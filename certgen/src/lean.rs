@@ -173,6 +173,87 @@ fn default_order(_p: &Problem, roots: Vec<usize>) -> Vec<usize> {
     roots
 }
 
+/// Number of quadruples in whose condition each orbit (given by its root triple) occurs.
+fn occurrences(sys: &Sys, sigma: &[usize], roots: &[usize]) -> Vec<usize> {
+    let p = Problem::new(sys, sigma, &default_order);
+    let mut occ = vec![0usize; roots.len()];
+    for &x in &p.quads {
+        let (l, r) = p.quad_terms(x);
+        let mut seen = vec![false; roots.len()];
+        for (i, j) in l.into_iter().chain(r) {
+            for c in [i, j] {
+                if c >= 2 {
+                    seen[c - 2] = true;
+                }
+            }
+        }
+        for (v, s) in seen.iter().enumerate() {
+            if *s {
+                occ[v] += 1;
+            }
+        }
+    }
+    occ
+}
+
+/// Kind of a triple: number of distinct atoms, used to group variables.
+fn kind(k: usize, conv: &[usize], x: usize) -> usize {
+    let (a, b, c) = (x / k / k, x / k % k, x % k);
+    let norm = |y: usize| y.min(conv[y]);
+    let mut v = vec![norm(a), norm(b), norm(c)];
+    v.sort();
+    v.dedup();
+    v.len()
+}
+
+pub fn stats(s: usize, n: usize, bmax: usize, ord: usize) {
+    let sys = Sys::new(s, n);
+    let g = sys.group();
+    let cl = classes(&g);
+    let rep = &cl.reps[0];
+    let base = Problem::new(&sys, rep, &default_order);
+    let occ = occurrences(&sys, rep, &base.reps);
+    let k = sys.k;
+    let conv = sys.conv.clone();
+    let order = move |_p: &Problem, roots: Vec<usize>| -> Vec<usize> {
+        let mut idx: Vec<usize> = (0..roots.len()).collect();
+        match ord {
+            0 => {}
+            1 => idx.sort_by_key(|&i| occ[i]),                       // most frequent last (= split first)
+            2 => idx.sort_by_key(|&i| std::cmp::Reverse(occ[i])),    // most frequent first (= bottom)
+            3 => idx.sort_by_key(|&i| kind(k, &conv, roots[i])),     // few distinct atoms at the bottom
+            4 => idx.sort_by_key(|&i| std::cmp::Reverse(kind(k, &conv, roots[i]))), // many distinct atoms at the bottom
+            _ => {}
+        }
+        idx.into_iter().map(|i| roots[i]).collect()
+    };
+    let p = Problem::new(&sys, rep, &order);
+    let b = p.nvars.min(bmax);
+    let t0 = std::time::Instant::now();
+    let tree = crate::tree::Tree::new(&p, b);
+    let blocks = tree.blocks();
+    let leaves = blocks.iter().filter(|x| matches!(x, crate::tree::Block::Leaf { .. })).count();
+    // distinct residual formulas among all assignments of the high variables
+    {
+        use std::collections::hash_map::DefaultHasher;
+        use std::collections::HashSet;
+        use std::hash::{Hash, Hasher};
+        let t = p.nvars - b;
+        let mut set: HashSet<u64> = HashSet::new();
+        let mut live = 0u64;
+        for alpha in 0..(1u64 << t) {
+            if let Some(r) = crate::tree::residual(&tree, alpha) {
+                live += 1;
+                let mut h = DefaultHasher::new();
+                r.hash(&mut h);
+                set.insert(h.finish());
+            }
+        }
+        println!("  high assignments {} live {} distinct residuals {}", 1u64 << t, live, set.len());
+    }
+    println!("({},{}) ord {} vars {} b {}: blocks {} leaves {} of {} ({:?})", s, n, ord, p.nvars, b, blocks.len(), leaves, 1u64 << (p.nvars - b), t0.elapsed());
+}
+
 pub fn generate(s: usize, n: usize, root: &Path, bmax: usize) {
     let sys = Sys::new(s, n);
     let k = sys.k;
@@ -267,4 +348,102 @@ pub fn generate(s: usize, n: usize, root: &Path, bmax: usize) {
     writeln!(content, "end {}", ctx.namespace).unwrap();
     write_file(&ctx.path_of(&format!("{}.Group", ctx.module)), &content);
     println!("  => {} isomorphism classes", orbits);
+}
+
+/// Statistics for the symmetry-reduced search of the identity class: the low variables are a
+/// union of orbits of variables under the symmetry group, of total size at most `bmax`.
+pub fn symstats(s: usize, n: usize, bmax: usize) {
+    let sys = Sys::new(s, n);
+    let g = sys.group();
+    let cl = classes(&g);
+    let rep = &cl.reps[0];
+    let k = sys.k;
+    let base = Problem::new(&sys, rep, &default_order);
+    let v = base.nvars;
+    // induced permutations of variables
+    let var_perm = |p: &Problem, h: &[usize]| -> Vec<usize> {
+        (0..p.nvars)
+            .map(|j| {
+                let x = p.reps[j];
+                let (a, b, c) = (x / k / k, x / k % k, x % k);
+                p.cls[p.tcode(h[a], h[b], h[c])] - 2
+            })
+            .collect()
+    };
+    // orbits of variables
+    let mut orb = vec![usize::MAX; v];
+    let mut orbits: Vec<Vec<usize>> = vec![];
+    let perms: Vec<Vec<usize>> = g.iter().map(|h| var_perm(&base, h)).collect();
+    for j in 0..v {
+        if orb[j] != usize::MAX { continue; }
+        let mut o: Vec<usize> = perms.iter().map(|p| p[j]).collect();
+        o.sort();
+        o.dedup();
+        for &x in &o { orb[x] = orbits.len(); }
+        orbits.push(o);
+    }
+    let occ = occurrences(&sys, rep, &base.reps);
+    let mut info: Vec<(usize, usize, usize)> = orbits.iter().enumerate().map(|(i, o)| (i, o.len(), occ[o[0]])).collect();
+    println!("({},{}) vars {} |G| {} variable orbits (size, occurrences): {:?}", s, n, v, g.len(), info.iter().map(|x| (x.1, x.2)).collect::<Vec<_>>());
+    // choose low orbits: fewest occurrences first, greedily while fitting
+    info.sort_by_key(|x| (x.2, x.1));
+    let mut low: Vec<usize> = vec![];
+    let mut b = 0;
+    for &(i, sz, _) in &info {
+        if b + sz <= bmax { low.push(i); b += sz; }
+    }
+    let low_set: std::collections::HashSet<usize> = low.iter().cloned().collect();
+    let mut order_idx: Vec<usize> = vec![];
+    for (i, o) in orbits.iter().enumerate() { if low_set.contains(&i) { order_idx.extend(o); } }
+    for (i, o) in orbits.iter().enumerate() { if !low_set.contains(&i) { order_idx.extend(o); } }
+    let roots: Vec<usize> = order_idx.iter().map(|&j| base.reps[j]).collect();
+    let order = move |_p: &Problem, _r: Vec<usize>| roots.clone();
+    let p = Problem::new(&sys, rep, &order);
+    let t = v - b;
+    let perms: Vec<Vec<usize>> = g.iter().map(|h| var_perm(&p, h)).collect();
+    let tree = crate::tree::Tree::new(&p, b);
+    let act = |pm: &Vec<usize>, alpha: u64| -> u64 {
+        let mut r = 0u64;
+        for i in 0..t { if (alpha >> i) & 1 == 1 { r |= 1 << (pm[b + i] - b); } }
+        r
+    };
+    let (mut canon, mut live, mut total_w) = (0u64, 0u64, 0u64);
+    for alpha in 0..(1u64 << t) {
+        let mut is_min = true;
+        let mut imgs: Vec<u64> = Vec::with_capacity(perms.len());
+        for pm in &perms {
+            let a2 = act(pm, alpha);
+            if a2 < alpha { is_min = false; break; }
+            imgs.push(a2);
+        }
+        if !is_min { continue; }
+        canon += 1;
+        imgs.sort();
+        imgs.dedup();
+        total_w += imgs.len() as u64;
+        let mut assign = vec![2u8; v];
+        for i in 0..t { assign[b + i] = ((alpha >> i) & 1) as u8; }
+        if tree.dead(&assign).is_none() { live += 1; }
+    }
+    println!("  b {} t {}: high assignments {} canonical {} live canonical {} (weights sum {})", b, t, 1u64 << t, canon, live, total_w);
+}
+
+/// Summary of the symmetry-reduced search for every class.
+pub fn symplan(s: usize, n: usize, bmax: usize) {
+    use crate::symm::*;
+    let sys = Sys::new(s, n);
+    let g = sys.group();
+    let cl = classes(&g);
+    for (i, rep) in cl.reps.iter().enumerate() {
+        let hs = centralizer(&g, rep);
+        let (roots, b) = choose_low(&sys, rep, &hs, bmax);
+        let order = move |_p: &Problem, _r: Vec<usize>| roots.clone();
+        let p = Problem::new(&sys, rep, &order);
+        let grp = BitGroup::new(&p, b, &hs);
+        let t0 = std::time::Instant::now();
+        let reps = all_reps(&p, b, &grp);
+        let live = reps.iter().filter(|r| r.dead.is_none()).count();
+        let w: u64 = reps.iter().map(|r| r.m).sum();
+        println!("  class {} vars {} |C| {} bit-group {} b {} t {}: reps {} live {} (weights ok: {}) est {:.0}s ({:?})", i, p.nvars, hs.len(), grp.perms.len(), b, grp.t, reps.len(), live, w == 1 << grp.t, estimate(&p, b, &grp, &reps), t0.elapsed());
+    }
 }
