@@ -6,6 +6,7 @@ Authors: Chris Henson
 
 module
 
+public import Solution.Cert.Orbit
 public import Solution.Cert.Popcount
 public import Solution.Cert.Sym
 
@@ -589,6 +590,14 @@ noncomputable def dotRR (b x r : ℕ) : ℕ :=
       (Nat.mod (Nat.div (Nat.div x P.k) P.k) P.k))
     (rowAt (krowsOf b r P.cls) (Nat.mod x P.k) (cvN P.s (Nat.mod (Nat.div x P.k) P.k))) 0
 
+theorem dotRL_eq (b x r : ℕ) : P.dotRL b x r = dotD (top b) b
+    (rowAt (krowsOf b r P.cls) (cvN P.s (x / P.k / P.k / P.k % P.k)) (x % P.k))
+    (rowAt (krowsOf b r P.cls) (x / P.k / P.k % P.k) (x / P.k % P.k)) 0 := rfl
+
+theorem dotRR_eq (b x r : ℕ) : P.dotRR b x r = dotD (top b) b
+    (rowAt (krowsOf b r P.cls) (x / P.k / P.k / P.k % P.k) (x / P.k / P.k % P.k))
+    (rowAt (krowsOf b r P.cls) (x % P.k) (cvN P.s (x / P.k % P.k))) 0 := rfl
+
 theorem quadD_eq_dotR (b α x bad : ℕ) :
     P.quadD (top b) (ones b) b (krowsOf b α P.cls) x bad =
       badS bad (neqS (top b) (ones b) (P.dotRL b x α) (P.dotRR b x α)) := rfl
@@ -786,6 +795,98 @@ theorem checkLeavesR_spec (hrows : P.checkRows = true) {b : ℕ} {qm : List (Lis
   | e :: es, h => by
     rw [checkLeavesR, Bool.and_eq_true, Bool.and_eq_true, Nat.blt_eq, Nat.beq_eq] at h
     exact ⟨(leafR_eq_leaf hrows hqm h.1).symm.trans h.2.1, checkLeavesR_spec hrows hqm h.2.2⟩
+
+/-- Reduce a small number and pass it on as a canonical expression (Boolean result). -/
+noncomputable def forceB (r : ℕ) (k : ℕ → Bool) : Bool :=
+  Nat.rec (motive := fun _ => Bool) (k 0) (fun n _ => k (Nat.succ n)) r
+
+theorem forceB_eq (r : ℕ) (k : ℕ → Bool) : forceB r k = k r := by
+  cases r <;> rfl
+
+/-- The two sides of the condition of the entry `e = (x, m₁, m₂)` are opposite constants when
+the high variables are given by `α`, evaluated on the memoised residuals. -/
+noncomputable def deadR (P : Problem) (b α : ℕ) (e : ℕ × ℕ × ℕ) : Bool :=
+  forceB (Nat.land α e.2.1) fun r₁ => forceB (Nat.land α e.2.2) fun r₂ =>
+    deadLR (top b) (P.dotRL b e.1 r₁) (P.dotRR b e.1 r₂)
+
+theorem leaf_deadR (hcheck : P.check = true) (hrows : P.checkRows = true) {b α : ℕ}
+    {e : ℕ × ℕ × ℕ} (hcov : P.coversQuad b e = true) (hα : α < 2 ^ (P.V - b))
+    (hdead : P.deadR b α e = true) : P.leaf b α = 0 := by
+  have hk := numAtoms_pos P.s P.n
+  have hm : ∀ y, y % P.k < P.k := fun y => Nat.mod_lt _ hk
+  obtain ⟨e1, e2⟩ := dotR_land (α := α) hcov
+  rw [deadR, forceB_eq, forceB_eq, e1, e2] at hdead
+  rw [leaf_eq hrows hα, Finset.card_eq_zero, Finset.filter_eq_empty_iff]
+  intro w _ hphi
+  have hβ : Nat.ofBits w < 2 ^ b := Nat.ofBits_lt_two_pow w
+  have hw : (fun i : Fin b => (Nat.ofBits w).testBit i) = w := by
+    funext i
+    exact Nat.testBit_ofBits_lt w i i.isLt
+  have hj : joinN b α (Nat.ofBits w) = join b α w := by rw [← join_testBit, hw]
+  obtain ⟨-, hL⟩ := dotD_rows_spec hrows (α := α) hβ (cvN_lt (hm (e.1 / P.k / P.k / P.k)))
+    (hm e.1) (hm (e.1 / P.k / P.k)) (hm (e.1 / P.k))
+  obtain ⟨-, hR⟩ := dotD_rows_spec hrows (α := α) hβ (hm (e.1 / P.k / P.k / P.k))
+    (hm (e.1 / P.k / P.k)) (hm e.1) (cvN_lt (hm (e.1 / P.k)))
+  have hq := quadB_of_phi hcheck hphi (hm (e.1 / P.k / P.k / P.k)) (hm (e.1 / P.k / P.k))
+    (hm (e.1 / P.k)) (hm e.1)
+  rw [quadB, beq_iff_eq, ← hj, ← hL, ← hR] at hq
+  have hT := top_pos b
+  rw [deadLR, Bool.or_eq_true, Bool.and_eq_true, Bool.and_eq_true, Nat.beq_eq, Nat.beq_eq,
+    Nat.beq_eq, Nat.beq_eq] at hdead
+  rcases hdead with ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · rw [dotRL_eq] at h1
+    rw [dotRR_eq] at h2
+    rw [h1, h2, sem_top, sem_zero hT] at hq
+    exact Bool.noConfusion hq
+  · rw [dotRL_eq] at h1
+    rw [dotRR_eq] at h2
+    rw [h1, h2, sem_top, sem_zero hT] at hq
+    exact Bool.noConfusion hq
+
+/-- Like `checkEv`, with the vanishing leaves checked on memoised residuals: evidence `i + 1`
+refers to the `i`-th entry of `flat`. -/
+noncomputable def checkEvR (P : Problem) (b : ℕ) (flat : List (ℕ × ℕ × ℕ)) :
+    List (ℕ × ℕ) → List ℕ → List (ℕ × ℕ) → ℕ → ℕ → Bool
+  | [], [], [], acc, W => Nat.beq acc W
+  | e :: seg, 0 :: ev, l :: live, acc, W =>
+    Nat.beq e.1 l.1 && checkEvR P b flat seg ev live (Nat.add acc (Nat.mul e.2 l.2)) W
+  | e :: seg, (i + 1) :: ev, live, acc, W =>
+    Nat.blt e.1 (2 ^ (P.V - b)) && (Nat.blt i flat.length &&
+      (P.deadR b e.1 (nth (0, 0, 0) flat i) && checkEvR P b flat seg ev live acc W))
+  | _, _, _, _, _ => false
+
+theorem checkEvR_spec (hcheck : P.check = true) (hrows : P.checkRows = true) {b : ℕ}
+    {flat : List (ℕ × ℕ × ℕ)} (hflat : flat.all (P.coversQuad b) = true) :
+    ∀ {seg : List (ℕ × ℕ)} {ev : List ℕ} {live : List (ℕ × ℕ)} {acc W : ℕ},
+      P.checkEvR b flat seg ev live acc W = true → LiveProofs P b live →
+      acc + (seg.map fun e => e.2 * P.leaf b e.1).sum = W
+  | [], [], [], acc, W, h, _ => by
+    rw [checkEvR, Nat.beq_eq] at h
+    simpa using h
+  | e :: seg, 0 :: ev, l :: live, acc, W, h, hl => by
+    rw [checkEvR, Bool.and_eq_true, Nat.beq_eq] at h
+    have ih := checkEvR_spec hcheck hrows hflat h.2 hl.2
+    rw [List.map_cons, List.sum_cons, h.1, hl.1, ← Nat.add_assoc]
+    exact ih
+  | e :: seg, (i + 1) :: ev, live, acc, W, h, hl => by
+    rw [checkEvR, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true, Nat.blt_eq,
+      Nat.blt_eq] at h
+    have ih := checkEvR_spec hcheck hrows hflat h.2.2.2 hl
+    have hcov := List.all_eq_true.mp hflat _ (nth_mem (0, 0, 0) h.2.1)
+    rw [List.map_cons, List.sum_cons, leaf_deadR hcheck hrows hcov h.1 h.2.2.1, Nat.mul_zero,
+      Nat.zero_add]
+    exact ih
+  | [], [], _ :: _, _, _, h, _ => by simp [checkEvR] at h
+  | [], _ :: _, _, _, _, h, _ => by simp [checkEvR] at h
+  | _ :: _, [], _, _, _, h, _ => by simp [checkEvR] at h
+  | _ :: _, 0 :: _, [], _, _, h, _ => by simp [checkEvR] at h
+
+theorem checkEvR_sum (hcheck : P.check = true) (hrows : P.checkRows = true) {b : ℕ}
+    {flat : List (ℕ × ℕ × ℕ)} (hflat : flat.all (P.coversQuad b) = true) {seg : List (ℕ × ℕ)}
+    {ev : List ℕ} {live : List (ℕ × ℕ)} {W : ℕ} (h : P.checkEvR b flat seg ev live 0 W = true)
+    (hl : LiveProofs P b live) : (seg.map fun e => e.2 * P.leaf b e.1).sum = W := by
+  have := checkEvR_spec hcheck hrows hflat h hl
+  rwa [Nat.zero_add] at this
 
 /-- Check the values of a list of leaves `(α, value)`. -/
 noncomputable def checkLeaves (P : Problem) (b : ℕ) : List (ℕ × ℕ) → Bool

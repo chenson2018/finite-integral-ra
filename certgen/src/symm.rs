@@ -194,14 +194,14 @@ pub fn all_reps(p: &Problem, b: usize, grp: &BitGroup) -> Vec<Rep> {
 /// Estimated kernel time (seconds) of the symmetry-reduced certificate of a class.
 pub fn estimate(p: &Problem, b: usize, grp: &BitGroup, reps: &[Rep]) -> f64 {
     // Calibrated on measured kernel times with the memoised evaluator: per leaf about 4 ms plus
-    // 25 µs per quadruple of small reduction steps and about 50 big-number operations (14 of
-    // them for the population count) at 127 µs each for tables of 2^20 bits, linear in the
-    // table size; about 0.6 ms per orbit minimum, and as much again for a dead one.
+    // 25 µs per quadruple of small reduction steps and about 70 big-number operations (14 of
+    // them for the population count) at 55 µs each for tables of 2^20 bits (with the malloc
+    // settings of `scripts/safe-run.sh`; about twice that without), linear in the table size;
+    // about 0.6 ms per orbit minimum.
     let live = reps.iter().filter(|r| r.dead.is_none()).count() as f64;
-    let dead = reps.len() as f64 - live;
-    let leaf = 0.004 + p.quads.len() as f64 * 25e-6 + 50.0 * 127e-6 * (2f64).powi(b as i32 - 20);
+    let leaf = 0.004 + p.quads.len() as f64 * 25e-6 + 70.0 * 55e-6 * (2f64).powi(b as i32 - 20);
     let _ = grp;
-    live * leaf + reps.len() as f64 * 0.0006 + dead * 0.0006
+    live * leaf + reps.len() as f64 * 0.0006
 }
 
 /// Choose the low variables as a union of orbits of variables under the symmetries `hs`, of

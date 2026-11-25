@@ -26,7 +26,7 @@ namespace S0
 def seg : List (ℕ × ℕ) :=
   [(0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (12, 1), (13, 1), (14, 1), (15, 1), (16, 1), (17, 1), (18, 1), (19, 1), (20, 1), (21, 1), (22, 1), (23, 1), (24, 1), (25, 1), (26, 1), (27, 1), (28, 1), (29, 1), (30, 1), (31, 1)]
 
-/-- Evidence: `0` for a leaf evaluated below, `x + 1` for a leaf killed by the quadruple `x`. -/
+/-- Evidence: `0` for a leaf evaluated below, `i + 1` for a leaf killed by the `i`-th quadruple. -/
 def ev : List ℕ :=
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
@@ -41,11 +41,11 @@ def live : List (ℕ × ℕ) := live0 ++ ([])
 
 theorem segOK : checkSeg 5 perms 0 32 seg = true := by decide +kernel
 
-theorem evOK : P.checkEv 21 seg ev live 0 1315498 = true := by decide +kernel
+theorem evOK : P.checkEvR 21 qmFlat seg ev live 0 1315498 = true := by decide +kernel
 
 theorem total : OrbitSeg 5 perms (P.leaf 21) 0 32 32 1315498 :=
   OrbitSeg.of_check segOK (by decide +kernel)
-    (checkEv_sum check rows evOK (.append (checkLeavesR_spec rows qmOK leavesOK0) (.nil)))
+    (checkEvR_sum check rows flatOK evOK (.append (checkLeavesR_spec rows qmOK leavesOK0) (.nil)))
 
 end S0
 

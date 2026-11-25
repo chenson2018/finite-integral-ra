@@ -657,6 +657,8 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
     let qm_s: Vec<String> = qm.iter().map(|blk| format!("[{}]", blk.iter().map(|(x, m1, m2)| format!("({}, {}, {})", x, m1, m2)).collect::<Vec<_>>().join(", "))).collect();
     writeln!(d, "/-- The quadruples in blocks, with the masks of the high variables of their two sides. -/\ndef qm : List (List (ℕ × ℕ × ℕ)) :=\n  [{}]\n", qm_s.join(",\n   ")).unwrap();
     writeln!(d, "theorem qmOK : P.checkQM {} qm = true := by decide +kernel\n", b).unwrap();
+    writeln!(d, "/-- All quadruples with their masks; dead leaves refer to them by index. -/\ndef qmFlat : List (ℕ × ℕ × ℕ) := qm.flatten\n").unwrap();
+    writeln!(d, "theorem flatOK : qmFlat.all (P.coversQuad {}) = true := by decide +kernel\n", b).unwrap();
     writeln!(d, "theorem symsOK : P.checkSyms {} syms perms = true := by decide +kernel\n", b).unwrap();
     writeln!(d, "theorem grpOK : checkBitGroup {} perms gens inv = true := by decide +kernel\n", t).unwrap();
     writeln!(d, "end {}", cls_ns).unwrap();
@@ -679,6 +681,7 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
         segs.push(cur);
     }
     let top: u64 = 1 << t;
+    let quad_index: std::collections::HashMap<usize, usize> = p.quads.iter().enumerate().map(|(i, &x)| (x, i)).collect();
     let mut parts: Vec<(Part, String)> = vec![];
     for (j, seg) in segs.iter().enumerate() {
         let lo = if j == 0 { 0 } else { seg[0].alpha };
@@ -690,10 +693,10 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
         let mut c = file_prelude(&[defs_module.clone()], "Generated certificate segment; see `certgen`.");
         writeln!(c, "namespace {}\n\nopen RACert RACert.Problem\n\nnamespace {}\n", cls_ns, seg_ns).unwrap();
         let seg_s: Vec<String> = seg.iter().map(|r| format!("({}, {})", r.alpha, r.m)).collect();
-        let ev_s: Vec<String> = seg.iter().map(|r| match r.dead { None => "0".to_string(), Some(x) => format!("{}", x + 1) }).collect();
+        let ev_s: Vec<String> = seg.iter().map(|r| match r.dead { None => "0".to_string(), Some(x) => format!("{}", quad_index[&x] + 1) }).collect();
         let live_s: Vec<String> = seg.iter().filter(|r| r.dead.is_none()).map(|r| format!("({}, {})", r.alpha, val_of[&r.alpha])).collect();
         writeln!(c, "/-- Orbit minima `(α, orbit size)` in this segment. -/\ndef seg : List (ℕ × ℕ) :=\n  [{}]\n", seg_s.join(", ")).unwrap();
-        writeln!(c, "/-- Evidence: `0` for a leaf evaluated below, `x + 1` for a leaf killed by the quadruple `x`. -/\ndef ev : List ℕ :=\n  [{}]\n", ev_s.join(", ")).unwrap();
+        writeln!(c, "/-- Evidence: `0` for a leaf evaluated below, `i + 1` for a leaf killed by the `i`-th quadruple. -/\ndef ev : List ℕ :=\n  [{}]\n", ev_s.join(", ")).unwrap();
         // the evaluated leaves, in chunks checked by one theorem each (the kernel shares the
         // tables within a theorem and releases them afterwards)
         let mut lp = String::from(".nil");
@@ -715,10 +718,10 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
         }
         writeln!(c, "/-- All evaluated leaves of this segment. -/\ndef live : List (ℕ × ℕ) := {}\n", live_expr).unwrap();
         writeln!(c, "theorem segOK : checkSeg {} perms {} {} seg = true := by decide +kernel\n", t, lo, hi).unwrap();
-        writeln!(c, "theorem evOK : P.checkEv {} seg ev live 0 {} = true := by decide +kernel\n", b, w).unwrap();
+        writeln!(c, "theorem evOK : P.checkEvR {} qmFlat seg ev live 0 {} = true := by decide +kernel\n", b, w).unwrap();
         writeln!(
             c,
-            "theorem total : OrbitSeg {} perms (P.leaf {}) {} {} {} {} :=\n  OrbitSeg.of_check segOK (by decide +kernel)\n    (checkEv_sum check rows evOK ({}))\n",
+            "theorem total : OrbitSeg {} perms (P.leaf {}) {} {} {} {} :=\n  OrbitSeg.of_check segOK (by decide +kernel)\n    (checkEvR_sum check rows flatOK evOK ({}))\n",
             t, b, lo, hi, m, w, lp
         )
         .unwrap();
@@ -835,8 +838,8 @@ pub fn plan(s: usize, n: usize, bmin: usize, bmax: usize) {
         }
         let scale = (2f64).powi(grp.t as i32) / samples as f64;
         let (reps_e, live_e) = (canon as f64 * scale, live as f64 * scale);
-        let leaf = 0.004 + p.quads.len() as f64 * 25e-6 + 50.0 * 127e-6 * (2f64).powi(b as i32 - 20);
-        let est = live_e * leaf + reps_e * 0.0012;
+        let leaf = 0.004 + p.quads.len() as f64 * 25e-6 + 70.0 * 55e-6 * (2f64).powi(b as i32 - 20);
+        let est = live_e * leaf + reps_e * 0.0006;
         rows.push((est, format!("  b {:>2} t {:>2} group {:>3}: minima ~{:.3e} live ~{:.3e} leaf {:.0} ms => ~{:.1} CPU-hours (mask {:#x})", b, grp.t, grp.perms.len(), reps_e, live_e, leaf * 1000.0, est / 3600.0, mask)));
     }
     rows.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());

@@ -149,6 +149,11 @@ def qm : List (List (ℕ × ℕ × ℕ)) :=
 
 theorem qmOK : P.checkQM 20 qm = true := by decide +kernel
 
+/-- All quadruples with their masks; dead leaves refer to them by index. -/
+def qmFlat : List (ℕ × ℕ × ℕ) := qm.flatten
+
+theorem flatOK : qmFlat.all (P.coversQuad 20) = true := by decide +kernel
+
 theorem symsOK : P.checkSyms 20 syms perms = true := by decide +kernel
 
 theorem grpOK : checkBitGroup 8 perms gens inv = true := by decide +kernel
