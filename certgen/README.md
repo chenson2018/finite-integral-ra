@@ -90,7 +90,7 @@ the only axioms are `propext`, `Quot.sound` and `Classical.choice`.
 ## Design notes for kernel reduction
 
 * The kernel's cost for an operation on big literals is proportional to the size of the result
-  (about 0.4 µs per KB with the malloc settings below: the result is written to fresh memory,
+  (about 0.4 µs per KB: the result is written to fresh memory,
   copied and hashed, and every intermediate value is retained until the end of the declaration),
   and several µs per reduction step of the surrounding bookkeeping, because every intermediate
   expression enters the kernel's caches. Both matter: truth tables of `2^20` bits fit into the
@@ -108,15 +108,13 @@ the only axioms are `propext`, `Quot.sound` and `Classical.choice`.
   memory until the end of the file.
 * Files are split so that `lake` checks them in parallel. Checking is dominated by memory
   traffic, so the speed-up from many threads is limited (about 3–4 on a 12-thread laptop CPU).
-  Exporting
-  `MALLOC_MMAP_THRESHOLD_=4294967296 MALLOC_TRIM_THRESHOLD_=4294967296 MALLOC_TOP_PAD_=1073741824`
-  (as `scripts/safe-run.sh` does) lets GMP reuse heap memory instead of mapping every large
-  block afresh and noticeably reduces the system time.
+  A file being checked needs up to 4 GB of memory, so a parallel build needs about that much per
+  job (about 30 GB in total on 12 threads).
 
 ## Status
 
-Checking times are wall-clock on a 12-thread laptop CPU (via `scripts/safe-run.sh`, i.e. with the
-malloc settings above), from a state where `Solution/Theory` and `Solution/Cert` are built.
+Checking times are wall-clock for `lake build Solution` on a 12-thread laptop CPU, from a state
+where `Solution/Theory` and `Solution/Cert` are built.
 Checking everything below together takes 97 minutes (18 CPU-hours).
 
 | type `(s, n)` | atoms | count | certificate | check |

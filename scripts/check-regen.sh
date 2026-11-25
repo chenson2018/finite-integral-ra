@@ -16,7 +16,7 @@ for ty in "${types[@]}"; do
   set -- $ty
   k=$((1 + $1 + 2 * $2))
   dir="Solution/Atoms$k/S$1N$2"
-  scripts/safe-run.sh 30G 7200 certgen/target/release/certgen gen "$1" "$2" "$tmp" > /dev/null
+  certgen/target/release/certgen gen "$1" "$2" "$tmp" > /dev/null
   if diff -r "$tmp/$dir" "$dir" > /dev/null; then
     echo "($1,$2): identical to $dir"
   else

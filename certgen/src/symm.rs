@@ -195,7 +195,7 @@ pub fn all_reps(p: &Problem, b: usize, m: usize, grp: &BitGroup) -> Vec<Rep> {
 /// Estimated kernel time (seconds, on one thread) of one evaluated leaf and of one orbit
 /// minimum, with tables of `2^b` bits and `m` eliminated variables.
 pub fn leaf_cost(_p: &Problem, b: usize, m: usize) -> (f64, f64) {
-    // Calibrated on measured kernel times (with the malloc settings of `scripts/safe-run.sh`):
+    // Calibrated on measured kernel times:
     // about 2 ms of small reduction steps per leaf, and 54 µs per big-number operation on tables
     // of 2^20 bits, linear in the table size; larger tables do not fit into the processor caches
     // together with their operands and cost more per bit, in particular when several files are
