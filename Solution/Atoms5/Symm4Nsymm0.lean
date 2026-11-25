@@ -11,9 +11,9 @@ import Solution.Atoms5.S4N0.Group
 
 public section
 
-namespace Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+namespace Cslib.RelationAlgebra.IntegralAtom.IsoClass
 
-theorem encard_ofSymmNsymm_four_zero : (ofSymmNsymm 4 0).encard = 3013 :=
-  mod_cast RACert.S4N0.count
+theorem card_ofSymmNsymm_four_zero : Nat.card (ofSymmNsymm 4 0) = 3013 :=
+  RACert.S4N0.count
 
-end Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+end Cslib.RelationAlgebra.IntegralAtom.IsoClass

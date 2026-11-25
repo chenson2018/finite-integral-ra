@@ -11,9 +11,9 @@ import Solution.Atoms6.S5N0.Group
 
 public section
 
-namespace Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+namespace Cslib.RelationAlgebra.IntegralAtom.IsoClass
 
-theorem encard_ofSymmNsymm_five_zero : (ofSymmNsymm 5 0).encard = 3849920 :=
-  mod_cast RACert.S5N0.count
+theorem card_ofSymmNsymm_five_zero : Nat.card (ofSymmNsymm 5 0) = 3849920 :=
+  RACert.S5N0.count
 
-end Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+end Cslib.RelationAlgebra.IntegralAtom.IsoClass

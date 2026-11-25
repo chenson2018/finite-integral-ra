@@ -11,9 +11,9 @@ import Solution.Atoms4.S1N1.Group
 
 public section
 
-namespace Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+namespace Cslib.RelationAlgebra.IntegralAtom.IsoClass
 
-theorem encard_ofSymmNsymm_one_one : (ofSymmNsymm 1 1).encard = 37 :=
-  mod_cast RACert.S1N1.count
+theorem card_ofSymmNsymm_one_one : Nat.card (ofSymmNsymm 1 1) = 37 :=
+  RACert.S1N1.count
 
-end Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+end Cslib.RelationAlgebra.IntegralAtom.IsoClass

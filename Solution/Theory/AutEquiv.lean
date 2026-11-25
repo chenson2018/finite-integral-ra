@@ -30,7 +30,7 @@ variable {s n : ℕ}
 /-- The map on atoms acting by `π` on symmetric atoms, by `ρ` on nonsymmetric pairs, and flipping
 the pairs selected by `ε`. -/
 def autFun (π : Fin s → Fin s) (ρ : Fin n → Fin n) (ε : Fin n → Bool) :
-    IntegralAtom s n → IntegralAtom s n
+    IntegralAtom (Fin s) (Fin n) → IntegralAtom (Fin s) (Fin n)
   | one => one
   | symm i => symm (π i)
   | nsymm i b => nsymm (ρ i) (b ^^ ε i)
@@ -70,7 +70,7 @@ theorem autOfTriple_apply_nsymm (π : Equiv.Perm (Fin s)) (ρ : Equiv.Perm (Fin 
     (autOfTriple (π, ρ, ε)).val (nsymm i b) = nsymm (ρ i) (b ^^ ε i) := rfl
 
 theorem autOfTriple_apply (p : Equiv.Perm (Fin s) × Equiv.Perm (Fin n) × (Fin n → Bool))
-    (a : IntegralAtom s n) : (autOfTriple p).val a = autFun p.1 p.2.1 p.2.2 a := rfl
+    (a : IntegralAtom (Fin s) (Fin n)) : (autOfTriple p).val a = autFun p.1 p.2.1 p.2.2 a := rfl
 
 theorem autOfTriple_injective : Function.Injective (autOfTriple (s := s) (n := n)) := by
   rintro ⟨π, ρ, ε⟩ ⟨π', ρ', ε'⟩ h
@@ -172,10 +172,11 @@ theorem autEquiv_symm_apply_nsymm (π : Equiv.Perm (Fin s)) (ρ : Equiv.Perm (Fi
     (autEquiv.symm (π, ρ, ε)).val (nsymm i b) = nsymm (ρ i) (b ^^ ε i) := rfl
 
 theorem autEquiv_symm_apply_apply
-    (p : Equiv.Perm (Fin s) × Equiv.Perm (Fin n) × (Fin n → Bool)) (a : IntegralAtom s n) :
+    (p : Equiv.Perm (Fin s) × Equiv.Perm (Fin n) × (Fin n → Bool))
+    (a : IntegralAtom (Fin s) (Fin n)) :
     (autEquiv.symm p).val a = autFun p.1 p.2.1 p.2.2 a := rfl
 
-/-- The symmetry group of `IntegralAtom s n` has `s ! * n ! * 2 ^ n` elements. -/
+/-- The symmetry group of `IntegralAtom (Fin s) (Fin n)` has `s ! * n ! * 2 ^ n` elements. -/
 theorem card_aut (s n : ℕ) : Nat.card (Aut s n) = s.factorial * n.factorial * 2 ^ n := by
   rw [Nat.card_congr autEquiv, Nat.card_eq_fintype_card, Fintype.card_prod, Fintype.card_prod,
     Fintype.card_perm, Fintype.card_perm, Fintype.card_fin, Fintype.card_fin, Fintype.card_fun,

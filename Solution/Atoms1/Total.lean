@@ -10,9 +10,9 @@ public import Solution.Atoms1.Symm0Nsymm0
 
 public section
 
-namespace Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+namespace Cslib.RelationAlgebra.IntegralAtom.IsoClass
 
-theorem encard_ofAtoms_one : (ofAtoms 1).encard = 1 := by
-  simpa [encard_ofAtoms_succ_eq_sum_ofSymmNsymm] using encard_ofSymmNsymm_zero_zero
+theorem card_ofAtoms_one : Nat.card (ofAtoms 1) = 1 := by
+  simpa [card_ofAtoms_succ_eq_sum_ofSymmNsymm] using card_ofSymmNsymm_zero_zero
 
-end Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+end Cslib.RelationAlgebra.IntegralAtom.IsoClass

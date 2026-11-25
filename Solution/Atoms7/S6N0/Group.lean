@@ -761,8 +761,8 @@ def elems : List (List ℕ × ℕ × List ℕ) :=
 theorem groupCert : checkGroup 6 0 reps elems = true := by decide +kernel
 
 /-- The number of isomorphism classes of integral relation algebras of type (6, 0). -/
-theorem count : (Cslib.RelationAlgebra.IntegralAlgebra.IsoClass.ofSymmNsymm 6 0).encard = (292352449486 : ℕ) :=
-  encard_ofSymmNsymm_of_groupCert' 6 0 292352449486 reps elems [210329506874380, 10655990948, 3216325, 93632936, 25978, 26045, 1055, 4202168, 5690, 139189, 239] groupCert
+theorem count : Nat.card (Cslib.RelationAlgebra.IntegralAtom.IsoClass.ofSymmNsymm 6 0) = 292352449486 :=
+  card_ofSymmNsymm_of_groupCert' 6 0 292352449486 reps elems [210329506874380, 10655990948, 3216325, 93632936, 25978, 26045, 1055, 4202168, 5690, 139189, 239] groupCert
     (.cons C0.count (.cons C1.count (.cons C2.count (.cons C3.count (.cons C4.count (.cons C5.count (.cons C6.count (.cons C7.count (.cons C8.count (.cons C9.count (.cons C10.count (.nil))))))))))))
     (by decide +kernel)
 

@@ -13,11 +13,11 @@ public import Solution.Atoms7.Symm6Nsymm0
 
 public section
 
-namespace Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+namespace Cslib.RelationAlgebra.IntegralAtom.IsoClass
 
-theorem encard_ofAtoms_seven : (ofAtoms 7).encard = 344809166311 := by
-  simpa [encard_ofAtoms_succ_eq_sum_ofSymmNsymm, Finset.sum_range_succ] using
-    mod_cast congr($(encard_ofSymmNsymm_zero_three) + $(encard_ofSymmNsymm_two_two) +
-      $(encard_ofSymmNsymm_four_one) + $(encard_ofSymmNsymm_six_zero))
+theorem card_ofAtoms_seven : Nat.card (ofAtoms 7) = 344809166311 := by
+  simpa [card_ofAtoms_succ_eq_sum_ofSymmNsymm, Finset.sum_range_succ] using
+    congr($(card_ofSymmNsymm_six_zero) + $(card_ofSymmNsymm_four_one) +
+      $(card_ofSymmNsymm_two_two) + $(card_ofSymmNsymm_zero_three))
 
-end Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+end Cslib.RelationAlgebra.IntegralAtom.IsoClass

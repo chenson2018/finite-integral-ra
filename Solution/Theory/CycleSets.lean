@@ -11,10 +11,10 @@ public import Cslib.Foundations.RelationAlgebra.IntegralAtomStructure
 /-!
 # Lawful cycle sets
 
-An integral atom structure on `IntegralAtom s n` is determined by its full set of cycles. This file
-defines the atom structure `IntegralAtom.structOf T` of a cycle set `T`, the predicate
-`IntegralAtom.IsLawfulCycles T` saying it is lawful, gives an elementary characterization of that
-predicate, and relates these to `IntegralAtom.ofCycles`.
+An integral atom structure on `IntegralAtom (Fin s) (Fin n)` is determined by its full set of
+cycles. This file defines the atom structure `IntegralAtom.structOf T` of a cycle set `T`, the
+predicate `IntegralAtom.IsLawfulCycles T` saying it is lawful, gives an elementary characterization
+of that predicate, and relates these to `IntegralAtom.ofCycles`.
 -/
 
 @[expose] public section
@@ -25,34 +25,36 @@ namespace IntegralAtom
 
 variable {s n : ℕ}
 
-/-- The atom structure on `IntegralAtom s n` with cycle set `T`. -/
-def structOf (T : Set (Cycle s n)) : AtomStructure (IntegralAtom s n) := ⟨conv, {one}, T⟩
+/-- The atom structure on `IntegralAtom (Fin s) (Fin n)` with cycle set `T`. -/
+def structOf (T : Set (Cycle (Fin s) (Fin n))) : AtomStructure (IntegralAtom (Fin s) (Fin n)) :=
+  ⟨conv, {one}, T⟩
 
 @[simp]
-theorem structOf_conv (T : Set (Cycle s n)) (a : IntegralAtom s n) :
+theorem structOf_conv (T : Set (Cycle (Fin s) (Fin n))) (a : IntegralAtom (Fin s) (Fin n)) :
     (structOf T).conv a = conv a := rfl
 
 @[simp]
-theorem structOf_id (T : Set (Cycle s n)) : (structOf T).id = {one} := rfl
+theorem structOf_id (T : Set (Cycle (Fin s) (Fin n))) : (structOf T).id = {one} := rfl
 
 @[simp]
-theorem mem_structOf_id {T : Set (Cycle s n)} {a : IntegralAtom s n} :
+theorem mem_structOf_id {T : Set (Cycle (Fin s) (Fin n))} {a : IntegralAtom (Fin s) (Fin n)} :
     a ∈ (structOf T).id ↔ a = one := .rfl
 
 @[simp]
-theorem structOf_cycles (T : Set (Cycle s n)) : (structOf T).cycles = T := rfl
+theorem structOf_cycles (T : Set (Cycle (Fin s) (Fin n))) : (structOf T).cycles = T := rfl
 
-theorem ofCycles_eq_structOf (g : Set (Cycle s n)) :
+theorem ofCycles_eq_structOf (g : Set (Cycle (Fin s) (Fin n))) :
     ofCycles g = structOf {c | CycleClosure g c} := rfl
 
 /-- `T` is the full cycle set of a lawful integral atom structure. -/
-def IsLawfulCycles (T : Set (Cycle s n)) : Prop := LawfulAtomStructure (structOf T)
+def IsLawfulCycles (T : Set (Cycle (Fin s) (Fin n))) : Prop := LawfulAtomStructure (structOf T)
 
-theorem IsLawfulCycles.lawfulAtomStructure {T : Set (Cycle s n)} (h : IsLawfulCycles T) :
+theorem IsLawfulCycles.lawfulAtomStructure {T : Set (Cycle (Fin s) (Fin n))}
+    (h : IsLawfulCycles T) :
     LawfulAtomStructure (structOf T) := h
 
 /-- An elementary characterization of lawful cycle sets. -/
-theorem isLawfulCycles_iff (T : Set (Cycle s n)) : IsLawfulCycles T ↔
+theorem isLawfulCycles_iff (T : Set (Cycle (Fin s) (Fin n))) : IsLawfulCycles T ↔
     (∀ r p, (r, one, p) ∈ T ↔ p = r) ∧
     (∀ r u t, (r, u, t) ∈ T → (conv r, t, u) ∈ T) ∧
     (∀ r q p u t, (r, q, p) ∈ T → (u, t, q) ∈ T → ∃ q', (q', t, p) ∈ T ∧ (r, u, q') ∈ T) := by
@@ -77,18 +79,18 @@ theorem isLawfulCycles_iff (T : Set (Cycle s n)) : IsLawfulCycles T ↔
 
 namespace IsLawfulCycles
 
-variable {T : Set (Cycle s n)} {r u t p : IntegralAtom s n}
+variable {T : Set (Cycle (Fin s) (Fin n))} {r u t p : IntegralAtom (Fin s) (Fin n)}
 
 theorem one_right_iff (h : IsLawfulCycles T) : (r, one, p) ∈ T ↔ p = r :=
   ((isLawfulCycles_iff T).mp h).1 r p
 
-theorem id_mem (h : IsLawfulCycles T) (r : IntegralAtom s n) : (r, one, r) ∈ T :=
+theorem id_mem (h : IsLawfulCycles T) (r : IntegralAtom (Fin s) (Fin n)) : (r, one, r) ∈ T :=
   h.one_right_iff.mpr rfl
 
 theorem left_mem (h : IsLawfulCycles T) (hc : (r, u, t) ∈ T) : (conv r, t, u) ∈ T :=
   ((isLawfulCycles_iff T).mp h).2.1 r u t hc
 
-theorem assoc (h : IsLawfulCycles T) {q u' t' : IntegralAtom s n} (h₁ : (r, q, p) ∈ T)
+theorem assoc (h : IsLawfulCycles T) {q u' t' : IntegralAtom (Fin s) (Fin n)} (h₁ : (r, q, p) ∈ T)
     (h₂ : (u', t', q) ∈ T) : ∃ q', (q', t', p) ∈ T ∧ (r, u', q') ∈ T :=
   ((isLawfulCycles_iff T).mp h).2.2 r q p u' t' h₁ h₂
 
@@ -111,10 +113,12 @@ theorem right_mem (h : IsLawfulCycles T) (hc : (r, u, t) ∈ T) : (t, conv u, r)
 theorem right_mem_iff (h : IsLawfulCycles T) : (t, conv u, r) ∈ T ↔ (r, u, t) ∈ T :=
   ⟨fun hc => by simpa using h.right_mem hc, h.right_mem⟩
 
-theorem cycleLeft_mem (h : IsLawfulCycles T) {c : Cycle s n} (hc : c ∈ T) : c.left ∈ T :=
+theorem cycleLeft_mem (h : IsLawfulCycles T) {c : Cycle (Fin s) (Fin n)} (hc : c ∈ T) :
+    c.left ∈ T :=
   h.left_mem hc
 
-theorem cycleRight_mem (h : IsLawfulCycles T) {c : Cycle s n} (hc : c ∈ T) : c.right ∈ T :=
+theorem cycleRight_mem (h : IsLawfulCycles T) {c : Cycle (Fin s) (Fin n)} (hc : c ∈ T) :
+    c.right ∈ T :=
   h.right_mem hc
 
 theorem one_left_iff (h : IsLawfulCycles T) : (one, r, p) ∈ T ↔ p = r := by
@@ -127,7 +131,7 @@ theorem one_out_iff (h : IsLawfulCycles T) : (r, u, one) ∈ T ↔ u = conv r :=
   rw [← h.left_mem_iff, h.one_right_iff]
 
 /-- The cycle closure of the diversity cycles of a lawful cycle set is the cycle set itself. -/
-theorem cycleClosure_diversity_iff (h : IsLawfulCycles T) {c : Cycle s n} :
+theorem cycleClosure_diversity_iff (h : IsLawfulCycles T) {c : Cycle (Fin s) (Fin n)} :
     CycleClosure {c ∈ T | c.IsDiversity} c ↔ c ∈ T := by
   constructor
   · intro hc
@@ -164,10 +168,11 @@ theorem ofCycles_diversity (h : IsLawfulCycles T) :
 end IsLawfulCycles
 
 /-- The full cycle set of a lawful `ofCycles` structure is a lawful cycle set. -/
-theorem isLawfulCycles_cycleClosure (g : Set (Cycle s n)) [h : LawfulAtomStructure (ofCycles g)] :
+theorem isLawfulCycles_cycleClosure (g : Set (Cycle (Fin s) (Fin n)))
+    [h : LawfulAtomStructure (ofCycles g)] :
     IsLawfulCycles {c | CycleClosure g c} := h
 
-theorem isLawfulCycles_cycleClosure_iff (g : Set (Cycle s n)) :
+theorem isLawfulCycles_cycleClosure_iff (g : Set (Cycle (Fin s) (Fin n))) :
     IsLawfulCycles {c | CycleClosure g c} ↔ LawfulAtomStructure (ofCycles g) := .rfl
 
 end IntegralAtom

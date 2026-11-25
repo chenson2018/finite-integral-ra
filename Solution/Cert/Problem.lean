@@ -387,7 +387,7 @@ theorem tbl_assignOf (h : P.check = true) {X : ℕ → ℕ → ℕ → Bool} (hX
     · rw [tbl, (checkId_spec h ha hc).1, litB_beq, hX.id_right a ha c hc]
     · rw [tbl, (checkId_spec h ha hb).2.2, litB_beq, hX.id_out a ha b hb]
 
-theorem enc_permFun (h : P.check = true) (a : IntegralAtom P.s P.n) :
+theorem enc_permFun (h : P.check = true) (a : IntegralAtom (Fin P.s) (Fin P.n)) :
     enc (permFun P.s P.n P.perm a) = P.pm (enc a) := by
   rw [permFun, ← nth_eq_getD, enc_dec]
   · rfl
@@ -399,7 +399,7 @@ theorem permFun_dec (c : ℕ) (hc : c < P.k) :
   rfl
 
 /-- The table of an invariant cycle set is invariant. -/
-theorem sigInv_setTbl (h : P.check = true) {T : Set (Cycle P.s P.n)}
+theorem sigInv_setTbl (h : P.check = true) {T : Set (Cycle (Fin P.s) (Fin P.n))}
     (hT : ∀ a b c, (permFun P.s P.n P.perm a, permFun P.s P.n P.perm b,
       permFun P.s P.n P.perm c) ∈ T ↔ (a, b, c) ∈ T) :
     SigInv P.k (setTbl T) P.pm P.pmi where
@@ -412,7 +412,7 @@ theorem sigInv_setTbl (h : P.check = true) {T : Set (Cycle P.s P.n)}
 
 /-- The set of lawful cycle sets invariant under the symmetry. -/
 abbrev FixedSets (P : Problem) : Type :=
-  {T : Set (Cycle P.s P.n) // IsLawfulCycles T ∧
+  {T : Set (Cycle (Fin P.s) (Fin P.n)) // IsLawfulCycles T ∧
     ∀ a b c, (permFun P.s P.n P.perm a, permFun P.s P.n P.perm b,
       permFun P.s P.n P.perm c) ∈ T ↔ (a, b, c) ∈ T}
 

@@ -19,7 +19,7 @@ that the atom with code `c` is sent to the atom with code `l[c]`. This file prov
 * `RACert.autOfList s n l`: the element of `Aut s n` coded by a valid list,
 * `RACert.checkGroup s n reps elems`: a Boolean check of a certificate listing every element of
   `Aut s n` exactly once, each together with a conjugacy class representative and a conjugator,
-* `RACert.encard_ofSymmNsymm_of_groupCert`: Burnside's lemma, with the sum over the group
+* `RACert.card_ofSymmNsymm_of_groupCert`: Burnside's lemma, with the sum over the group
   replaced by a sum over the certificate of one fixed-point count per conjugacy class.
 
 All Boolean checks are structurally recursive functions on lists of naturals built from the raw
@@ -164,14 +164,14 @@ theorem validPerm_getD_inj (h : validPerm s n l = true) {c d : ℕ} (hc : c < nu
   exact (hnd.getElem_inj_iff).mp hcd
 
 /-- For a valid list, the code of the image of `a` is the entry at the code of `a`. -/
-theorem enc_permFun (h : validPerm s n l = true) (a : IntegralAtom s n) :
+theorem enc_permFun (h : validPerm s n l = true) (a : IntegralAtom (Fin s) (Fin n)) :
     enc (permFun s n l a) = l.getD (enc a) 0 :=
   enc_dec (validPerm_getD_lt h (enc_lt a))
 
 theorem permFun_one (h : validPerm s n l = true) : permFun s n l one = one := by
   rw [permFun, enc_one, (validPerm_iff.mp h).2.1, dec_zero]
 
-theorem permFun_conv (h : validPerm s n l = true) (a : IntegralAtom s n) :
+theorem permFun_conv (h : validPerm s n l = true) (a : IntegralAtom (Fin s) (Fin n)) :
     permFun s n l (conv a) = conv (permFun s n l a) := by
   rw [permFun, permFun, enc_conv, (validPerm_iff.mp h).2.2.2.2 _ (enc_lt a),
     dec_cvN (validPerm_getD_lt h (enc_lt a))]
@@ -193,7 +193,7 @@ noncomputable def autOfList (s n : ℕ) (l : List ℕ) : Aut s n :=
       mem_aut_iff.mpr ⟨permFun_one h, permFun_conv h⟩⟩
   else 1
 
-theorem autOfList_apply (h : validPerm s n l = true) (a : IntegralAtom s n) :
+theorem autOfList_apply (h : validPerm s n l = true) (a : IntegralAtom (Fin s) (Fin n)) :
     (autOfList s n l).val a = permFun s n l a := by
   unfold autOfList
   split
@@ -227,7 +227,7 @@ theorem autOfList_eq_conj (hl : validPerm s n l = true) (ht : validPerm s n t = 
 
 /-- The number of lawful cycle sets invariant under `σ`. -/
 noncomputable def fixCount (σ : Aut s n) : ℕ :=
-  Nat.card {T : Set (Cycle s n) // IsLawfulCycles T ∧
+  Nat.card {T : Set (Cycle (Fin s) (Fin n)) // IsLawfulCycles T ∧
     ∀ a b c, (σ.val a, σ.val b, σ.val c) ∈ T ↔ (a, b, c) ∈ T}
 
 theorem fixCountL_eq_fixCount (h : validPerm s n l = true) :
@@ -235,7 +235,8 @@ theorem fixCountL_eq_fixCount (h : validPerm s n l = true) :
   simp only [fixCountL, fixCount, autOfList_apply h]
 
 theorem fixCount_eq_card_fixedBy (σ : Aut s n) :
-    fixCount σ = Nat.card (MulAction.fixedBy {T : Set (Cycle s n) // IsLawfulCycles T} σ) :=
+    fixCount σ =
+      Nat.card (MulAction.fixedBy {T : Set (Cycle (Fin s) (Fin n)) // IsLawfulCycles T} σ) :=
   Nat.card_congr (fixedByEquiv σ).symm
 
 /-- The fixed-point count is a class function. -/
@@ -275,16 +276,16 @@ theorem sum_aut_eq_sum_map [Fintype (Aut s n)] {ls : List (List ℕ)}
 /-- Burnside's lemma over a group certificate: if `checkGroup` accepts `reps` and `elems`, the
 `i`-th representative fixes `counts[i]` lawful cycle sets, and the counts summed over the
 certificate give `N * |Aut s n|`, then there are `N` isomorphism classes. -/
-theorem encard_ofSymmNsymm_of_groupCert (s n N : ℕ) (reps : List (List ℕ))
+theorem card_ofSymmNsymm_of_groupCert (s n N : ℕ) (reps : List (List ℕ))
     (elems : List (List ℕ × ℕ × List ℕ)) (counts : List ℕ)
     (hcert : checkGroup s n reps elems = true)
     (hcounts : ∀ i < reps.length, fixCountL s n (reps.getD i []) = counts.getD i 0)
     (hsum : weightedSum counts elems = N * (s.factorial * n.factorial * 2 ^ n)) :
-    (Cslib.RelationAlgebra.IntegralAlgebra.IsoClass.ofSymmNsymm s n).encard = N := by
+    Nat.card (Cslib.RelationAlgebra.IntegralAtom.IsoClass.ofSymmNsymm s n) = N := by
   classical
   obtain ⟨hreps, helems, hnd, hlen⟩ := checkGroup_spec hcert
   let _ : Fintype (Aut s n) := Fintype.ofFinite _
-  refine IntegralAlgebra.IsoClass.encard_ofSymmNsymm_eq_of_sum' s n N ?_
+  refine IntegralAtom.IsoClass.card_ofSymmNsymm_eq_of_sum' s n N ?_
   rw [card_aut, ← hsum]
   change ∑ σ : Aut s n, fixCount σ = _
   rw [sum_aut_eq_sum_map (ls := elems.map fun e => e.1) ?_ hnd (by rw [List.length_map, hlen]),
@@ -299,16 +300,16 @@ theorem encard_ofSymmNsymm_of_groupCert (s n N : ℕ) (reps : List (List ℕ))
     obtain ⟨e, he, rfl⟩ := List.mem_map.mp hl
     exact (checkElem_iff.mp (helems e he)).1
 
-/-- A version of `encard_ofSymmNsymm_of_groupCert` with the fixed-point counts of the
+/-- A version of `card_ofSymmNsymm_of_groupCert` with the fixed-point counts of the
 representatives given as a `List.Forall₂`, i.e. one hypothesis `fixCountL s n rᵢ = cᵢ` per
 conjugacy class. -/
-theorem encard_ofSymmNsymm_of_groupCert' (s n N : ℕ) (reps : List (List ℕ))
+theorem card_ofSymmNsymm_of_groupCert' (s n N : ℕ) (reps : List (List ℕ))
     (elems : List (List ℕ × ℕ × List ℕ)) (counts : List ℕ)
     (hcert : checkGroup s n reps elems = true)
     (hcounts : List.Forall₂ (fun r c => fixCountL s n r = c) reps counts)
     (hsum : weightedSum counts elems = N * (s.factorial * n.factorial * 2 ^ n)) :
-    (Cslib.RelationAlgebra.IntegralAlgebra.IsoClass.ofSymmNsymm s n).encard = N := by
-  refine encard_ofSymmNsymm_of_groupCert s n N reps elems counts hcert (fun i hi => ?_) hsum
+    Nat.card (Cslib.RelationAlgebra.IntegralAtom.IsoClass.ofSymmNsymm s n) = N := by
+  refine card_ofSymmNsymm_of_groupCert s n N reps elems counts hcert (fun i hi => ?_) hsum
   obtain ⟨hlen, h⟩ := List.forall₂_iff_get.mp hcounts
   have hi' : i < counts.length := hlen ▸ hi
   rw [List.getD_eq_getElem reps [] hi, List.getD_eq_getElem counts 0 hi']

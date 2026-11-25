@@ -20,14 +20,14 @@ in `Solution/Atoms<k>/Symm<s>Nsymm<n>.lean` imports `Solution.Atoms<k>.S<s>N<n>.
 ## What is proved, and how
 
 The Lean development (`Solution/Theory`, `Solution/Cert`) reduces
-`(ofSymmNsymm s n).encard = N` to kernel computations in four steps.
+`Nat.card (ofSymmNsymm s n) = N` to kernel computations in four steps.
 
 1. **Classification** (`Solution/Theory`). Every finite integral relation algebra with `s`
    symmetric and `2n` nonsymmetric diversity atoms is the complex algebra of a *lawful cycle set*
-   `T` on `IntegralAtom s n`, and two such algebras are isomorphic iff their cycle sets are
-   related by an element of the group `Aut s n` of permutations of the atoms fixing the identity
-   and commuting with converse. So the count is the number of orbits, and by Burnside's lemma
-   `N * |Aut s n| = ∑ σ, #{T lawful | σ T = T}`.
+   `T` on `IntegralAtom (Fin s) (Fin n)`, and two such algebras are isomorphic iff their cycle
+   sets are related by an element of the group `Aut s n` of permutations of the atoms fixing the
+   identity and commuting with converse. So the count is the number of orbits, and by Burnside's
+   lemma `N * |Aut s n| = ∑ σ, #{T lawful | σ T = T}`.
 
 2. **Group certificate** (`Solution/Cert/Group.lean`). The group is listed explicitly, each
    element with its conjugacy class and a conjugator; the checker `checkGroup` validates the
@@ -129,7 +129,7 @@ Checking everything below together takes 97 minutes (18 CPU-hours).
 | (4,1) | 7 | 50265788140 | 1446336 orbit minima, 218422 leaves, 4 eliminated variables | about 15 minutes |
 | (6,0) | 7 | 292352449486 | 1540944 orbit minima, all evaluated, 6 eliminated variables | about 80 minutes |
 
-This gives the totals for up to 7 atoms (`encard_ofAtoms_seven`: 344809166311). Not covered:
+This gives the totals for up to 7 atoms (`card_ofAtoms_seven`: 344809166311). Not covered:
 `(1,3)`, a type with 8 atoms. Its identity class has 63 variables, only
 one of which can be eliminated; with tables of `2^20` bits this leaves 42 high variables, i.e.
 about `10^11` orbits of assignments under its 48 symmetries, of which about `6 * 10^9` need a

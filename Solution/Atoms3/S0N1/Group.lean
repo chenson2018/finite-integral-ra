@@ -34,8 +34,8 @@ def elems : List (List ℕ × ℕ × List ℕ) :=
 theorem groupCert : checkGroup 0 1 reps elems = true := by decide +kernel
 
 /-- The number of isomorphism classes of integral relation algebras of type (0, 1). -/
-theorem count : (Cslib.RelationAlgebra.IntegralAlgebra.IsoClass.ofSymmNsymm 0 1).encard = (3 : ℕ) :=
-  encard_ofSymmNsymm_of_groupCert' 0 1 3 reps elems [3, 3] groupCert
+theorem count : Nat.card (Cslib.RelationAlgebra.IntegralAtom.IsoClass.ofSymmNsymm 0 1) = 3 :=
+  card_ofSymmNsymm_of_groupCert' 0 1 3 reps elems [3, 3] groupCert
     (.cons C0.count (.cons C1.count (.nil)))
     (by decide +kernel)
 

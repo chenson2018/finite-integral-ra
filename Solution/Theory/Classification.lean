@@ -16,7 +16,7 @@ public import Mathlib.SetTheory.Cardinal.NatCard
 
 Every finite integral relation algebra with `s` symmetric diversity atoms and `n` pairs of
 nonsymmetric atoms is isomorphic to the complex algebra of a lawful cycle set on
-`IntegralAtom s n`. In particular this proves `exists_ofCycles_of_mem_ofSymmNsymm`.
+`IntegralAtom (Fin s) (Fin n)`. In particular this proves `exists_ofCycles_of_mem_ofSymmNsymm`.
 -/
 
 @[expose] public section
@@ -65,7 +65,8 @@ namespace IntegralAtom
 variable {s n : ℕ}
 
 /-- The non-dependent eliminator of `IntegralAtom`. -/
-def elim {γ : Sort*} (x : γ) (f : Fin s → γ) (g : Fin n → Bool → γ) : IntegralAtom s n → γ
+def elim {γ : Sort*} (x : γ) (f : Fin s → γ) (g : Fin n → Bool → γ) :
+    IntegralAtom (Fin s) (Fin n) → γ
   | one => x
   | symm i => f i
   | nsymm i b => g i b
@@ -83,27 +84,25 @@ theorem elim_nsymm {γ : Sort*} (x : γ) (f : Fin s → γ) (g : Fin n → Bool 
     (b : Bool) : elim x f g (nsymm i b) = g i b := rfl
 
 /-- The lawful atom structure of a lawful cycle set, as an instance. -/
-instance instLawfulAtomStructureStructOf (T : {T : Set (Cycle s n) // IsLawfulCycles T}) :
+instance instLawfulAtomStructureStructOf
+    (T : {T : Set (Cycle (Fin s) (Fin n)) // IsLawfulCycles T}) :
     LawfulAtomStructure (structOf T.val) := T.property
 
 /-- The complex algebra of a lawful cycle set is integral. -/
-theorem isIntegral_structOf (T : {T : Set (Cycle s n) // IsLawfulCycles T}) :
+theorem isIntegral_structOf (T : {T : Set (Cycle (Fin s) (Fin n)) // IsLawfulCycles T}) :
     IsIntegral (ComplexAlgebra (structOf T.val)) :=
   (ComplexAlgebra.isIntegral_iff _).mpr ⟨one, rfl⟩
-
-/-- The isomorphism class of the complex algebra of a lawful cycle set. -/
-def isoClassOf (T : {T : Set (Cycle s n) // IsLawfulCycles T}) : IntegralAlgebra.IsoClass :=
-  ⟦⟨ComplexAlgebra (structOf T.val), isIntegral_structOf T⟩⟧
 
 section Finite
 
 variable {α : Type*} [RelationAlgebra α] [Finite α]
 
 /-- The atoms of a finite integral relation algebra with `s` symmetric diversity atoms and `2 * n`
-nonsymmetric atoms can be labelled by `IntegralAtom s n`, compatibly with identity and converse. -/
+nonsymmetric atoms can be labelled by `IntegralAtom (Fin s) (Fin n)`, compatibly with identity and
+converse. -/
 theorem exists_equiv_isAtom (h1 : IsIntegral α) (hs : (symmetricDiversityAtoms α).ncard = s)
     (hn : (nonsymmetricDiversityAtoms α).ncard = 2 * n) :
-    ∃ e : IntegralAtom s n ≃ {a : α // IsAtom a},
+    ∃ e : IntegralAtom (Fin s) (Fin n) ≃ {a : α // IsAtom a},
       (e one).val = 1 ∧ ∀ a, (e (conv a)).val = star (e a).val := by
   obtain ⟨es⟩ : Nonempty (Fin s ≃ symmetricDiversityAtoms α) :=
     ⟨((Finite.equivFin _).trans (finCongr (by rw [Nat.card_coe_set_eq, hs]))).symm⟩
@@ -112,7 +111,7 @@ theorem exists_equiv_isAtom (h1 : IsIntegral α) (hs : (symmetricDiversityAtoms 
       fun h => x.property.2 (star_injective h)⟩)
     (fun x => Subtype.ext (star_star x.val)) (fun x h => x.property.2 (congrArg Subtype.val h))
     (by rw [Nat.card_coe_set_eq, hn])
-  let φ : IntegralAtom s n → {a : α // IsAtom a} :=
+  let φ : IntegralAtom (Fin s) (Fin n) → {a : α // IsAtom a} :=
     elim ⟨1, h1⟩ (fun i => ⟨(es i).val, (es i).property.1⟩)
       (fun i b => ⟨(en (i, b)).val, (en (i, b)).property.1⟩)
   have hone_symm : (1 : α) ∉ symmetricDiversityAtoms α := fun h =>
@@ -168,14 +167,15 @@ theorem exists_equiv_isAtom (h1 : IsIntegral α) (hs : (symmetricDiversityAtoms 
   exact ⟨Equiv.ofBijective φ ⟨hinj, hsurj⟩, rfl, hconv⟩
 
 /-- A finite integral relation algebra with `s` symmetric diversity atoms and `2 * n` nonsymmetric
-atoms is isomorphic to the complex algebra of a lawful cycle set on `IntegralAtom s n`. -/
+atoms is isomorphic to the complex algebra of a lawful cycle set on
+`IntegralAtom (Fin s) (Fin n)`. -/
 theorem exists_isLawfulCycles_relationAlgebraEquiv (h1 : IsIntegral α)
     (hs : (symmetricDiversityAtoms α).ncard = s)
     (hn : (nonsymmetricDiversityAtoms α).ncard = 2 * n) :
-    ∃ T : {T : Set (Cycle s n) // IsLawfulCycles T},
+    ∃ T : {T : Set (Cycle (Fin s) (Fin n)) // IsLawfulCycles T},
       Nonempty (RelationAlgebraEquiv (ComplexAlgebra (structOf T.val)) α) := by
   obtain ⟨e, he1, heconv⟩ := exists_equiv_isAtom (s := s) (n := n) h1 hs hn
-  let T : Set (Cycle s n) := {c | (e c.1, e c.2.1, e c.2.2) ∈ (atomStructure α).cycles}
+  let T : Set (Cycle (Fin s) (Fin n)) := {c | (e c.1, e c.2.1, e c.2.2) ∈ (atomStructure α).cycles}
   have hconv : ∀ a, e ((structOf T).conv a) = (atomStructure α).conv (e a) :=
     fun a => Subtype.ext (heconv a)
   have hcyc : ∀ a b c,
@@ -194,63 +194,34 @@ end Finite
 
 end IntegralAtom
 
-namespace IntegralAlgebra.IsoClass
-
-open IntegralAtom
+namespace IntegralAtom
 
 variable {s n : ℕ}
 
-/-- The class of a lawful `ofCycles` structure is the class of its full cycle set. -/
-theorem isoClassOf_cycleClosure (g : Set (Cycle s n)) [LawfulAtomStructure (ofCycles g)] :
-    isoClassOf ⟨{c | CycleClosure g c}, isLawfulCycles_cycleClosure g⟩ =
-      ⟦⟨ComplexAlgebra (ofCycles g), isIntegral_ofCycles g⟩⟧ := rfl
-
-/-- The class of a lawful cycle set is the class of the `ofCycles` structure generated by its
+/-- A lawful cycle set has the same complex algebra as the `ofCycles` structure generated by its
 diversity cycles. -/
-theorem exists_lawful_ofCycles_eq_isoClassOf (T : {T : Set (Cycle s n) // IsLawfulCycles T}) :
+theorem exists_lawful_ofCycles_equiv
+    (T : {T : Set (Cycle (Fin s) (Fin n)) // IsLawfulCycles T}) :
     ∃ _ : LawfulAtomStructure (ofCycles {c ∈ T.val | c.IsDiversity}),
-      ⟦⟨ComplexAlgebra (ofCycles {c ∈ T.val | c.IsDiversity}), isIntegral_ofCycles _⟩⟧ =
-        isoClassOf T := by
+      Nonempty (RelationAlgebraEquiv (ComplexAlgebra (ofCycles {c ∈ T.val | c.IsDiversity}))
+        (ComplexAlgebra (structOf T.val))) := by
   have hlawful : LawfulAtomStructure (ofCycles {c ∈ T.val | c.IsDiversity}) :=
     T.property.ofCycles_diversity ▸ T.property.lawfulAtomStructure
-  exact ⟨hlawful, Quotient.sound ⟨ComplexAlgebra.congr (Equiv.refl _) (fun _ => rfl)
+  exact ⟨hlawful, ⟨ComplexAlgebra.congr (Equiv.refl _) (fun _ => rfl)
     fun _ _ _ => T.property.cycleClosure_diversity_iff⟩⟩
 
-theorem isoClassOf_mem_ofSymmNsymm (T : {T : Set (Cycle s n) // IsLawfulCycles T}) :
-    isoClassOf T ∈ ofSymmNsymm s n := by
-  obtain ⟨_, h⟩ := exists_lawful_ofCycles_eq_isoClassOf T
-  exact h ▸ mk_complexAlgebra_ofCycles_mem_ofSymmNsymm _
-
-/-- Every class in `ofSymmNsymm s n` is the class of a lawful cycle set. -/
-theorem exists_isoClassOf_eq_of_mem_ofSymmNsymm {q : IsoClass} (hq : q ∈ ofSymmNsymm s n) :
-    ∃ T : {T : Set (Cycle s n) // IsLawfulCycles T}, isoClassOf T = q := by
-  obtain ⟨A, rfl, hs, hn⟩ := hq
-  obtain ⟨T, ⟨e⟩⟩ := exists_isLawfulCycles_relationAlgebraEquiv (s := s) (n := n) A.isIntegral hs hn
-  exact ⟨T, Quotient.sound ⟨e⟩⟩
-
-/-- The classes in `ofSymmNsymm s n` are exactly the classes of lawful cycle sets. -/
-theorem mem_ofSymmNsymm_iff_exists_lawful {q : IsoClass} :
-    q ∈ ofSymmNsymm s n ↔
-      ∃ T : {T : Set (Cycle s n) // IsLawfulCycles T}, isoClassOf T = q :=
-  ⟨exists_isoClassOf_eq_of_mem_ofSymmNsymm, fun ⟨T, h⟩ => h ▸ isoClassOf_mem_ofSymmNsymm T⟩
-
-/-- Every class in `ofSymmNsymm s n` is the class of an `ofCycles` structure. This is the
+/-- Every finite integral relation algebra with `s` symmetric diversity atoms and `n` pairs of
+nonsymmetric atoms is isomorphic to the complex algebra of an `ofCycles` structure. This is the
 `theorem_wanted` of the same name in Cslib. -/
-theorem exists_ofCycles_of_mem_ofSymmNsymm {q : IsoClass} (hq : q ∈ ofSymmNsymm s n) :
-    ∃ (g : Set (IntegralAtom.Cycle s n)) (_ : LawfulAtomStructure (IntegralAtom.ofCycles g)),
-      ⟦⟨ComplexAlgebra (IntegralAtom.ofCycles g), IntegralAtom.isIntegral_ofCycles g⟩⟧ = q := by
-  obtain ⟨T, rfl⟩ := exists_isoClassOf_eq_of_mem_ofSymmNsymm hq
-  exact ⟨_, exists_lawful_ofCycles_eq_isoClassOf T⟩
+theorem exists_ofCycles_of_isIntegral {A : Type*} [RelationAlgebra A] [Finite A]
+    (hA : IsIntegral A) (hs : (symmetricDiversityAtoms A).ncard = s)
+    (hn : (nonsymmetricDiversityAtoms A).ncard = 2 * n) :
+    ∃ (g : Set (Cycle (Fin s) (Fin n))) (_ : LawfulAtomStructure (ofCycles g)),
+      Nonempty (RelationAlgebraEquiv A (ComplexAlgebra (ofCycles g))) := by
+  obtain ⟨T, ⟨e⟩⟩ := exists_isLawfulCycles_relationAlgebraEquiv (s := s) (n := n) hA hs hn
+  obtain ⟨hlawful, ⟨f⟩⟩ := exists_lawful_ofCycles_equiv T
+  exact ⟨_, hlawful, ⟨e.symm.trans f.symm⟩⟩
 
-/-- The isomorphism classes with `s` symmetric diversity atoms and `n` pairs of nonsymmetric atoms
-are exactly those of the complex algebras of `IntegralAtom.ofCycles`. -/
-theorem mem_ofSymmNsymm_iff {q : IsoClass} :
-    q ∈ ofSymmNsymm s n ↔
-      ∃ (g : Set (IntegralAtom.Cycle s n)) (_ : LawfulAtomStructure (IntegralAtom.ofCycles g)),
-        ⟦⟨ComplexAlgebra (IntegralAtom.ofCycles g), IntegralAtom.isIntegral_ofCycles g⟩⟧ = q :=
-  ⟨exists_ofCycles_of_mem_ofSymmNsymm,
-    fun ⟨g, _, h⟩ => h ▸ mk_complexAlgebra_ofCycles_mem_ofSymmNsymm g⟩
-
-end IntegralAlgebra.IsoClass
+end IntegralAtom
 
 end Cslib.RelationAlgebra

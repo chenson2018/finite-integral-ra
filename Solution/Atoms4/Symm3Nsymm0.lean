@@ -11,9 +11,9 @@ import Solution.Atoms4.S3N0.Group
 
 public section
 
-namespace Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+namespace Cslib.RelationAlgebra.IntegralAtom.IsoClass
 
-theorem encard_ofSymmNsymm_three_zero : (ofSymmNsymm 3 0).encard = 65 :=
-  mod_cast RACert.S3N0.count
+theorem card_ofSymmNsymm_three_zero : Nat.card (ofSymmNsymm 3 0) = 65 :=
+  RACert.S3N0.count
 
-end Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+end Cslib.RelationAlgebra.IntegralAtom.IsoClass

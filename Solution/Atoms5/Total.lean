@@ -12,11 +12,11 @@ public import Solution.Atoms5.Symm4Nsymm0
 
 public section
 
-namespace Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+namespace Cslib.RelationAlgebra.IntegralAtom.IsoClass
 
-theorem encard_ofAtoms_five : (ofAtoms 5).encard = 4412 := by
-  simpa [encard_ofAtoms_succ_eq_sum_ofSymmNsymm, Finset.sum_range_succ] using
-    mod_cast congr($(encard_ofSymmNsymm_zero_two) + $(encard_ofSymmNsymm_two_one) +
-      $(encard_ofSymmNsymm_four_zero))
+theorem card_ofAtoms_five : Nat.card (ofAtoms 5) = 4412 := by
+  simpa [card_ofAtoms_succ_eq_sum_ofSymmNsymm, Finset.sum_range_succ] using
+    congr($(card_ofSymmNsymm_four_zero) + $(card_ofSymmNsymm_two_one) +
+      $(card_ofSymmNsymm_zero_two))
 
-end Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+end Cslib.RelationAlgebra.IntegralAtom.IsoClass

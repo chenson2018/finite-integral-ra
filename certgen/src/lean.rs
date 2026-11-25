@@ -274,7 +274,7 @@ pub fn generate(s: usize, n: usize, root: &Path, bmax: usize) {
     }
     writeln!(
         content,
-        "/-- The number of isomorphism classes of integral relation algebras of type ({s}, {n}). -/\ntheorem count : (Cslib.RelationAlgebra.IntegralAlgebra.IsoClass.ofSymmNsymm {s} {n}).encard = ({orbits} : ℕ) :=\n  encard_ofSymmNsymm_of_groupCert' {s} {n} {orbits} reps elems {cs} groupCert\n    ({fa})\n    (by decide +kernel)\n",
+        "/-- The number of isomorphism classes of integral relation algebras of type ({s}, {n}). -/\ntheorem count : Nat.card (Cslib.RelationAlgebra.IntegralAtom.IsoClass.ofSymmNsymm {s} {n}) = {orbits} :=\n  card_ofSymmNsymm_of_groupCert' {s} {n} {orbits} reps elems {cs} groupCert\n    ({fa})\n    (by decide +kernel)\n",
         s = s,
         n = n,
         orbits = orbits,

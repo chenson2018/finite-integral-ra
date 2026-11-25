@@ -11,11 +11,11 @@ public import Solution.Cert.Enc
 /-!
 # Boolean tables for cycle sets
 
-A cycle set on `IntegralAtom s n` is represented by a Boolean table `X : ℕ → ℕ → ℕ → Bool` on atom
-codes. This file expresses lawfulness of the cycle set through Boolean conditions on the table:
-the identity and Peircean conditions (`PeirceTbl`) and the associativity condition for each
-quadruple of atoms (`quadB`), together with the symmetries of the latter which allow checking only
-one quadruple in each orbit.
+A cycle set on `IntegralAtom (Fin s) (Fin n)` is represented by a Boolean table
+`X : ℕ → ℕ → ℕ → Bool` on atom codes. This file expresses lawfulness of the cycle set through
+Boolean conditions on the table: the identity and Peircean conditions (`PeirceTbl`) and the
+associativity condition for each quadruple of atoms (`quadB`), together with the symmetries of the
+latter which allow checking only one quadruple in each orbit.
 -/
 
 @[expose] public section
@@ -27,25 +27,25 @@ open Cslib.RelationAlgebra IntegralAtom
 variable {s n : ℕ}
 
 /-- The cycle set of a Boolean table on codes. -/
-def tblSet (s n : ℕ) (X : ℕ → ℕ → ℕ → Bool) : Set (Cycle s n) :=
+def tblSet (s n : ℕ) (X : ℕ → ℕ → ℕ → Bool) : Set (Cycle (Fin s) (Fin n)) :=
   {c | X (enc c.1) (enc c.2.1) (enc c.2.2) = true}
 
 @[simp]
-theorem mem_tblSet {X : ℕ → ℕ → ℕ → Bool} {a b c : IntegralAtom s n} :
+theorem mem_tblSet {X : ℕ → ℕ → ℕ → Bool} {a b c : IntegralAtom (Fin s) (Fin n)} :
     (a, b, c) ∈ tblSet s n X ↔ X (enc a) (enc b) (enc c) = true := Iff.rfl
 
 open Classical in
 /-- The Boolean table of a cycle set. -/
-noncomputable def setTbl (T : Set (Cycle s n)) (a b c : ℕ) : Bool :=
+noncomputable def setTbl (T : Set (Cycle (Fin s) (Fin n))) (a b c : ℕ) : Bool :=
   decide ((dec s n a, dec s n b, dec s n c) ∈ T)
 
 @[simp]
-theorem setTbl_eq_true {T : Set (Cycle s n)} {a b c : ℕ} :
+theorem setTbl_eq_true {T : Set (Cycle (Fin s) (Fin n))} {a b c : ℕ} :
     setTbl T a b c = true ↔ (dec s n a, dec s n b, dec s n c) ∈ T := by
   simp [setTbl]
 
 @[simp]
-theorem tblSet_setTbl (T : Set (Cycle s n)) : tblSet s n (setTbl T) = T := by
+theorem tblSet_setTbl (T : Set (Cycle (Fin s) (Fin n))) : tblSet s n (setTbl T) = T := by
   ext ⟨a, b, c⟩
   simp
 
@@ -139,7 +139,7 @@ theorem isLawfulCycles_tblSet (h : PeirceTbl s n X)
     · rw [mem_tblSet, enc_dec hq']
       exact h3
 
-variable {T : Set (Cycle s n)}
+variable {T : Set (Cycle (Fin s) (Fin n))}
 
 /-- The table of a lawful cycle set satisfies the identity and Peircean conditions. -/
 theorem peirceTbl_setTbl (h : IsLawfulCycles T) : PeirceTbl s n (setTbl T) where

@@ -5,7 +5,7 @@
    "type": "git",
    "subDir": null,
    "scope": "",
-   "rev": "5c51a3eb12257e35f6343f1aa19519b31751f208",
+   "rev": "3ad9e9fa64e43da0809d1de3cb3dcc46c4c00e1a",
    "name": "cslib",
    "manifestFile": "lake-manifest.json",
    "inputRev": "chenson2018/integral-atom-structure",

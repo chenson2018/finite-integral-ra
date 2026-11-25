@@ -11,9 +11,9 @@ import Solution.Atoms5.S0N2.Group
 
 public section
 
-namespace Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+namespace Cslib.RelationAlgebra.IntegralAtom.IsoClass
 
-theorem encard_ofSymmNsymm_zero_two : (ofSymmNsymm 0 2).encard = 83 :=
-  mod_cast RACert.S0N2.count
+theorem card_ofSymmNsymm_zero_two : Nat.card (ofSymmNsymm 0 2) = 83 :=
+  RACert.S0N2.count
 
-end Cslib.RelationAlgebra.IntegralAlgebra.IsoClass
+end Cslib.RelationAlgebra.IntegralAtom.IsoClass
