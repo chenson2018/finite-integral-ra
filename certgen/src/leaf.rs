@@ -10,12 +10,12 @@ enum Tab {
 }
 
 pub struct Evaluator<'a> {
-    p: &'a Problem,
-    b: usize,
+    pub p: &'a Problem,
+    pub b: usize,
     words: usize,
     mask: u64,
     pats: Vec<Vec<u64>>,
-    terms: Vec<(Vec<(usize, usize)>, Vec<(usize, usize)>)>,
+    pub terms: Vec<(Vec<(usize, usize)>, Vec<(usize, usize)>)>,
 }
 
 impl<'a> Evaluator<'a> {
@@ -125,4 +125,50 @@ pub fn all_leaves(p: &Problem, b: usize) -> Vec<u64> {
         }
     });
     out
+}
+
+/// Operation counts of one leaf as evaluated by the kernel (distinct big-number operations):
+/// (ands, ors, xors, bad-ors, quads with equal non-constant sides).
+pub fn op_counts(ev: &Evaluator, alpha: u64) -> (usize, usize, usize, usize, usize) {
+    use std::collections::HashSet;
+    let p = ev.p;
+    let b = ev.b;
+    // 0 false, 1 true, 2 table
+    let kind = |code: usize| -> u8 {
+        match code {
+            0 => 0,
+            1 => 1,
+            c => { let j = c - 2; if j < b { 2 } else { ((alpha >> (j - b)) & 1) as u8 } }
+        }
+    };
+    let mut ands: HashSet<(usize, usize)> = HashSet::new();
+    let (mut ors, mut xors, mut bors, mut eqs) = (0, 0, 0, 0);
+    // returns (constant?, canonical description)
+    let mut dot = |terms: &[(usize, usize)], ands: &mut HashSet<(usize, usize)>, ors: &mut usize| -> (u8, Vec<(usize, usize)>) {
+        let mut desc: Vec<(usize, usize)> = vec![];
+        let mut acc_real = false;
+        for &(i, j) in terms {
+            let (x, y) = (kind(i), kind(j));
+            if x == 0 || y == 0 { continue; }
+            if x == 1 && y == 1 { return (1, vec![]); }
+            if x == 2 && y == 2 { ands.insert((i, j)); desc.push((i.min(j), i.max(j))); }
+            else if x == 2 { desc.push((i, i)); } else { desc.push((j, j)); }
+            if acc_real { *ors += 1; }
+            acc_real = true;
+        }
+        if desc.is_empty() { (0, desc) } else { desc.sort(); desc.dedup(); (2, desc) }
+    };
+    for (l, r) in &ev.terms {
+        let (kl, dl) = dot(l, &mut ands, &mut ors);
+        let (kr, dr) = dot(r, &mut ands, &mut ors);
+        if kl != 2 && kr != 2 {
+            if kl != kr { break; }
+            continue;
+        }
+        if kl == 2 && kr == 2 && dl == dr { eqs += 1; }
+        xors += 1;
+        bors += 1;
+    }
+    let _ = p;
+    (ands.len(), ors, xors, bors, eqs)
 }

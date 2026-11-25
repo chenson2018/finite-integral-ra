@@ -461,6 +461,19 @@ pub fn symplan(s: usize, n: usize, bmax: usize) {
         let t0 = std::time::Instant::now();
         let reps = all_reps(&p, b, &grp);
         let live = reps.iter().filter(|r| r.dead.is_none()).count();
+        {
+            let ev = crate::leaf::Evaluator::new(&p, b);
+            let mut tot = (0usize, 0usize, 0usize, 0usize, 0usize);
+            let mut cnt = 0usize;
+            for r in reps.iter().filter(|r| r.dead.is_none()).step_by((live / 2000).max(1)) {
+                let c = crate::leaf::op_counts(&ev, r.alpha);
+                tot = (tot.0 + c.0, tot.1 + c.1, tot.2 + c.2, tot.3 + c.3, tot.4 + c.4);
+                cnt += 1;
+            }
+            if cnt > 0 {
+                println!("    avg per live leaf: ands {} ors {} xors {} bad-ors {} equal-sides {}", tot.0 / cnt, tot.1 / cnt, tot.2 / cnt, tot.3 / cnt, tot.4 / cnt);
+            }
+        }
         let w: u64 = reps.iter().map(|r| r.m).sum();
         println!("  class {} vars {} |C| {} bit-group {} b {} t {}: reps {} live {} (weights ok: {}) est {:.0}s ({:?})", i, p.nvars, hs.len(), grp.perms.len(), b, grp.t, reps.len(), live, w == 1 << grp.t, estimate(&p, b, &grp, &reps), t0.elapsed());
     }
