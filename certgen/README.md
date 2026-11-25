@@ -87,3 +87,22 @@ the only axioms are `propext`, `Quot.sound` and `Classical.choice`.
   `MALLOC_MMAP_THRESHOLD_=4294967296 MALLOC_TRIM_THRESHOLD_=4294967296 MALLOC_TOP_PAD_=1073741824`
   (as `scripts/safe-run.sh` does) lets GMP reuse heap memory instead of mapping every large
   block afresh and noticeably reduces the system time.
+
+## Status
+
+Checking times are wall-clock on a 12-thread workstation (via `scripts/safe-run.sh`, i.e. with
+the malloc settings above), from a state where `Solution/Theory` and `Solution/Cert` are built.
+
+| type `(s, n)` | atoms | count | certificate | check |
+|---|---|---|---|---|
+| (0,0) (1,0) (0,1) (2,0) | 1–3 | 1, 2, 3, 7 | one leaf per class | seconds |
+| (1,1) (3,0) | 4 | 37, 65 | one leaf per class | seconds |
+| (0,2) (2,1) (4,0) | 5 | 83, 1316, 3013 | one leaf per class | seconds |
+| (1,2) (3,1) (5,0) | 6 | 47965, 988464, 3849920 | orbit minima, 2^20–2^22-bit tables | under a minute |
+| (0,3) | 7 | 4492953 | 24432 orbit minima, 5571 leaves | under a minute |
+| (2,2) | 7 | 2186435732 | 286272 orbit minima, 68513 leaves | about 10 minutes |
+
+Not covered: `(6,0)` (estimated at well over 50 CPU-hours of kernel time with this method: all
+1.7 million orbits of the 30 high variables need a truth table of 2^26 bits) and `(1,3)`
+(estimated at tens of thousands of CPU-hours); consequently also the 7-atom total. Use
+`certgen plan <s> <n> <bmin> <bmax>` to reproduce these estimates.
