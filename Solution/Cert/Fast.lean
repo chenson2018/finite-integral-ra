@@ -6,6 +6,7 @@ Authors: Chris Henson
 
 module
 
+public import Solution.Cert.Popcount
 public import Solution.Cert.Sym
 
 /-!
@@ -491,7 +492,7 @@ variable (P)
 /-- The number of models whose high variables are given by `α`, computed with shared tables. -/
 noncomputable def leafS (b α : ℕ) : ℕ :=
   P.evalK (top b) (ones b) b (krowsOf b α P.cls) P.quads 0
-    fun bad => popcount b (Nat.xor (ones b) bad)
+    fun bad => popcountF b (Nat.xor (ones b) bad)
 
 variable {P}
 
@@ -501,7 +502,7 @@ theorem leafS_eq_leaf (hrows : P.checkRows = true) {b α : ℕ} (hα : α < 2 ^ 
     evalD_spec hrows (α := α) hβ P.quads (top_pos b)
   have h0 := (hbad 0 (Nat.pow_pos (by decide))).1
   rw [leaf_eq hrows hα, leafS, evalK_eq]
-  refine popcount_eq_card_filter_fun (xor_lt (ones_lt b) h0) (fun w => P.phi (join b α w)) ?_
+  refine popcountF_eq_card_filter_fun (xor_lt (ones_lt b) h0) (fun w => P.phi (join b α w)) ?_
   intro β hβ
   rw [testBit_xor, testBit_ones, (hbad β hβ).2, join_testBit, phi]
   simp only [hβ, decide_true, Nat.zero_testBit, Bool.false_or, Bool.true_xor]
@@ -751,7 +752,7 @@ variable (P)
 /-- The number of models whose high variables are given by `α`, computed with memoised
 residuals. -/
 noncomputable def leafR (b : ℕ) (qm : List (List (ℕ × ℕ × ℕ))) (α : ℕ) : ℕ :=
-  P.evalB b (ones b) α qm 0 fun bad => popcount b (Nat.xor (ones b) bad)
+  P.evalB b (ones b) α qm 0 fun bad => popcountF b (Nat.xor (ones b) bad)
 
 variable {P}
 
@@ -764,7 +765,7 @@ theorem leafR_eq_leaf (hrows : P.checkRows = true) {b : ℕ} {qm : List (List (�
     evalBD_spec hrows (α := α) hβ qm hqm.2 (top_pos b)
   have h0 := (hbad 0 (Nat.pow_pos (by decide))).1
   rw [leaf_eq hrows hα, leafR, evalB_eq]
-  refine popcount_eq_card_filter_fun (xor_lt (ones_lt b) h0) (fun w => P.phi (join b α w)) ?_
+  refine popcountF_eq_card_filter_fun (xor_lt (ones_lt b) h0) (fun w => P.phi (join b α w)) ?_
   intro β hβ
   rw [testBit_xor, testBit_ones, (hbad β hβ).2, hquads, join_testBit, phi]
   simp only [hβ, decide_true, Nat.zero_testBit, Bool.false_or, Bool.true_xor]

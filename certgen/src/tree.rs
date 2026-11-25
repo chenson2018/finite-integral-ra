@@ -36,6 +36,7 @@ pub struct Tree<'a> {
 
 /// A maximal block of the search: all `alpha` in `[lo, lo + 2^j)`.
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub enum Block {
     /// Every leaf of the block is zero because quadruple number `quad` is violated.
     Dead { lo: u64, j: usize, quad: usize },

@@ -502,12 +502,15 @@ pub fn symplan(s: usize, n: usize, bmax: usize) {
 use crate::symm::{all_reps, centralizer, choose_low, BitGroup, Rep};
 
 /// Maximal number of orbit minima in one segment file.
-const SEG_REPS: usize = 4000;
+const SEG_REPS: usize = 1500;
+
+/// Maximal number of leaf-checking theorems in one segment file.
+const SEG_CHUNKS: usize = 12;
 
 /// Maximal number of evaluated leaves in one segment: the big-number results of one declaration
-/// are all retained by the kernel, about 95 per leaf, and should stay around one gigabyte.
+/// are all retained by the kernel, about 55 per leaf, and should stay around one gigabyte.
 fn seg_live(b: usize) -> usize {
-    let per_leaf = 95.0 * (1u64 << b) as f64 / 8.0;
+    let per_leaf = 55.0 * (1u64 << b) as f64 / 8.0;
     ((1.2e9 / per_leaf) as usize).clamp(4, 256)
 }
 
@@ -582,7 +585,8 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
     let (roots, b) = choose_low(sys, rep, hs, bmax);
     let order = move |_p: &Problem, _r: Vec<usize>| roots.clone();
     let mut p = Problem::new(sys, rep, &order);
-    let qm = p.order_quads(b, 8);
+    let block: usize = std::env::var("CERTGEN_BLOCK").ok().and_then(|x| x.parse().ok()).unwrap_or(8);
+    let qm = p.order_quads(b, block);
     let grp = BitGroup::new(&p, b, hs);
     let t = grp.t;
     let t0 = std::time::Instant::now();
@@ -597,8 +601,9 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
         for (ci, slice) in vals.chunks_mut(chunk).enumerate() {
             let (ev, live) = (&ev, &live);
             sc.spawn(move || {
+                let mut memo = crate::leaf::MemoEval::new(ev, if b >= 22 { 2000 << 20 } else { 600 << 20 });
                 for (j, o) in slice.iter_mut().enumerate() {
-                    *o = ev.leaf(live[ci * chunk + j].alpha);
+                    *o = memo.leaf(live[ci * chunk + j].alpha);
                 }
             });
         }
@@ -612,6 +617,29 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
         "  class {} rep {:?}: vars {} quads {} b {} t {} group {} minima {} live {} count {} ({:?})",
         i, rep, p.nvars, p.quads.len(), b, t, grp.perms.len(), reps.len(), live.len(), total, t0.elapsed()
     );
+    {
+        // sharing statistics: distinct big-number operations per leaf within a checking theorem
+        let masks: Vec<(u64, u64)> = p.quads.iter().map(|&x| p.quad_masks(x, b)).collect();
+        let index: std::collections::HashMap<usize, usize> = p.quads.iter().enumerate().map(|(i, &x)| (x, i)).collect();
+        let blocks: Vec<Vec<usize>> = qm.iter().map(|blk| blk.iter().map(|e| index[&e.0]).collect()).collect();
+        let g = seg_live(b);
+        let (mut ops, mut n) = (0usize, 0usize);
+        let mut cat = [0usize; 6];
+        for grp in live.chunks(g).step_by((live.len() / g / 200).max(1)) {
+            let mut keys = std::collections::HashSet::new();
+            for r in grp {
+                ops += crate::leaf::op_keys_memo(&ev, &masks, &blocks, r.alpha, &mut keys, &mut cat);
+                n += 1;
+            }
+        }
+        if n > 0 {
+            let f = |x: usize| x as f64 / n as f64;
+            println!(
+                "    {} leaves per theorem, about {:.1} big operations per leaf besides the population count (and {:.1}, or {:.1}, xor {:.1}, block {:.1}, chain {:.1})",
+                g, f(ops), f(cat[1]), f(cat[2]), f(cat[3]), f(cat[4]), f(cat[5])
+            );
+        }
+    }
     let cls_module = format!("{}.C{}", ctx.module, i);
     let cls_ns = format!("{}.C{}", ctx.namespace, i);
     let defs_module = format!("{}.Defs", cls_module);
@@ -638,7 +666,7 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
     let mut cur: Vec<&Rep> = vec![];
     let mut cur_live = 0;
     for r in &reps {
-        if cur.len() >= SEG_REPS || (cur_live >= seg_live(b) && r.dead.is_none()) {
+        if cur.len() >= SEG_REPS || (cur_live >= SEG_CHUNKS * seg_live(b) && r.dead.is_none()) {
             segs.push(std::mem::take(&mut cur));
             cur_live = 0;
         }
@@ -666,9 +694,26 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
         let live_s: Vec<String> = seg.iter().filter(|r| r.dead.is_none()).map(|r| format!("({}, {})", r.alpha, val_of[&r.alpha])).collect();
         writeln!(c, "/-- Orbit minima `(α, orbit size)` in this segment. -/\ndef seg : List (ℕ × ℕ) :=\n  [{}]\n", seg_s.join(", ")).unwrap();
         writeln!(c, "/-- Evidence: `0` for a leaf evaluated below, `x + 1` for a leaf killed by the quadruple `x`. -/\ndef ev : List ℕ :=\n  [{}]\n", ev_s.join(", ")).unwrap();
-        writeln!(c, "/-- The evaluated leaves `(α, value)`. -/\ndef live : List (ℕ × ℕ) :=\n  [{}]\n", live_s.join(", ")).unwrap();
-        writeln!(c, "theorem leavesOK : P.checkLeavesR {} qm live = true := by decide +kernel\n", b).unwrap();
-        let lp = String::from("checkLeavesR_spec rows qmOK leavesOK");
+        // the evaluated leaves, in chunks checked by one theorem each (the kernel shares the
+        // tables within a theorem and releases them afterwards)
+        let mut lp = String::from(".nil");
+        let mut names: Vec<String> = vec![];
+        let nchunks = live_s.chunks(seg_live(b)).count();
+        for (ci, chunk) in live_s.chunks(seg_live(b)).enumerate().collect::<Vec<_>>().into_iter().rev() {
+            lp = format!(".append (checkLeavesR_spec rows qmOK leavesOK{}) ({})", ci, lp);
+            let _ = chunk;
+        }
+        for (ci, chunk) in live_s.chunks(seg_live(b)).enumerate() {
+            writeln!(c, "/-- Evaluated leaves `(α, value)`, part {}. -/\ndef live{} : List (ℕ × ℕ) :=\n  [{}]\n", ci, ci, chunk.join(", ")).unwrap();
+            writeln!(c, "theorem leavesOK{} : P.checkLeavesR {} qm live{} = true := by decide +kernel\n", ci, b, ci).unwrap();
+            names.push(format!("live{}", ci));
+        }
+        let _ = nchunks;
+        let mut live_expr = String::from("[]");
+        for nm in names.iter().rev() {
+            live_expr = format!("{} ++ ({})", nm, live_expr);
+        }
+        writeln!(c, "/-- All evaluated leaves of this segment. -/\ndef live : List (ℕ × ℕ) := {}\n", live_expr).unwrap();
         writeln!(c, "theorem segOK : checkSeg {} perms {} {} seg = true := by decide +kernel\n", t, lo, hi).unwrap();
         writeln!(c, "theorem evOK : P.checkEv {} seg ev live 0 {} = true := by decide +kernel\n", b, w).unwrap();
         writeln!(
@@ -739,4 +784,63 @@ pub fn quadstats(s: usize, n: usize) {
         }
     }
     println!("({},{}): quads {} trivial(rows) {} trivial(terms) {}; variable-variable terms {} distinct ordered {} unordered {}", s, n, p.quads.len(), triv_rows, triv_terms, nterms, pairs_all.len(), pairs_canon.len());
+}
+
+/// Cheap plan for the identity class: for every admissible split into low and high variables,
+/// estimate (by sampling) the numbers of orbit minima and of live leaves.
+pub fn plan(s: usize, n: usize, bmin: usize, bmax: usize) {
+    use crate::symm::*;
+    let sys = Sys::new(s, n);
+    let g = sys.group();
+    let cl = classes(&g);
+    let rep = &cl.reps[0];
+    let base = Problem::new(&sys, rep, &default_order);
+    let orbits = var_orbits(&base, &g);
+    let sizes: Vec<usize> = orbits.iter().map(|o| o.len()).collect();
+    println!("({},{}) vars {} |G| {} variable orbit sizes {:?}", s, n, base.nvars, g.len(), sizes);
+    let no = orbits.len();
+    let mut rows: Vec<(f64, String)> = vec![];
+    let mut seen_sizes = std::collections::HashMap::new();
+    for mask in 0u64..(1 << no) {
+        let sz: usize = (0..no).filter(|i| mask >> i & 1 == 1).map(|i| sizes[i]).sum();
+        if sz < bmin || sz > bmax {
+            continue;
+        }
+        // at most a few candidates per size
+        let cnt = seen_sizes.entry(sz).or_insert(0usize);
+        if *cnt >= 6 {
+            continue;
+        }
+        *cnt += 1;
+        let mut order: Vec<usize> = vec![];
+        for (i, o) in orbits.iter().enumerate() { if mask >> i & 1 == 1 { order.extend(o); } }
+        for (i, o) in orbits.iter().enumerate() { if mask >> i & 1 == 0 { order.extend(o); } }
+        let roots: Vec<usize> = order.into_iter().map(|j| base.reps[j]).collect();
+        let ord = move |_p: &Problem, _r: Vec<usize>| roots.clone();
+        let p = Problem::new(&sys, rep, &ord);
+        let b = sz;
+        let grp = BitGroup::new(&p, b, &g);
+        let tree = crate::tree::Tree::new(&p, b);
+        let samples = 1u64 << 17;
+        let mut x: u64 = 0x9E3779B97F4A7C15;
+        let (mut canon, mut live) = (0u64, 0u64);
+        let mut assign = vec![2u8; p.nvars];
+        for _ in 0..samples {
+            x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            let alpha = (x >> 20) & ((1u64 << grp.t) - 1);
+            if (0..grp.perms.len()).any(|i| grp.act(i, alpha) < alpha) { continue; }
+            canon += 1;
+            for i in 0..grp.t { assign[b + i] = ((alpha >> i) & 1) as u8; }
+            if tree.dead(&assign).is_none() { live += 1; }
+        }
+        let scale = (2f64).powi(grp.t as i32) / samples as f64;
+        let (reps_e, live_e) = (canon as f64 * scale, live as f64 * scale);
+        let leaf = 0.004 + p.quads.len() as f64 * 25e-6 + 50.0 * 127e-6 * (2f64).powi(b as i32 - 20);
+        let est = live_e * leaf + reps_e * 0.0012;
+        rows.push((est, format!("  b {:>2} t {:>2} group {:>3}: minima ~{:.3e} live ~{:.3e} leaf {:.0} ms => ~{:.1} CPU-hours (mask {:#x})", b, grp.t, grp.perms.len(), reps_e, live_e, leaf * 1000.0, est / 3600.0, mask)));
+    }
+    rows.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    for (_, r) in rows.iter().take(12) {
+        println!("{}", r);
+    }
 }

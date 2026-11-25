@@ -194,14 +194,14 @@ pub fn all_reps(p: &Problem, b: usize, grp: &BitGroup) -> Vec<Rep> {
 /// Estimated kernel time (seconds) of the symmetry-reduced certificate of a class.
 pub fn estimate(p: &Problem, b: usize, grp: &BitGroup, reps: &[Rep]) -> f64 {
     // Calibrated on measured kernel times with the memoised evaluator: per leaf about 4 ms plus
-    // 25 µs per quadruple of small reduction steps and about 95 big-number operations (80 of
+    // 25 µs per quadruple of small reduction steps and about 50 big-number operations (14 of
     // them for the population count) at 127 µs each for tables of 2^20 bits, linear in the
-    // table size; per orbit minimum about 3.4 µs per permuted bit.
+    // table size; about 0.6 ms per orbit minimum, and as much again for a dead one.
     let live = reps.iter().filter(|r| r.dead.is_none()).count() as f64;
     let dead = reps.len() as f64 - live;
-    let leaf = 0.004 + p.quads.len() as f64 * 25e-6 + 95.0 * 127e-6 * (2f64).powi(b as i32 - 20);
-    let rep = 0.0002 + grp.perms.len() as f64 * grp.t as f64 * 3.4e-6;
-    live * leaf + reps.len() as f64 * rep + dead * 0.0006
+    let leaf = 0.004 + p.quads.len() as f64 * 25e-6 + 50.0 * 127e-6 * (2f64).powi(b as i32 - 20);
+    let _ = grp;
+    live * leaf + reps.len() as f64 * 0.0006 + dead * 0.0006
 }
 
 /// Choose the low variables as a union of orbits of variables under the symmetries `hs`, of
@@ -212,6 +212,24 @@ pub fn choose_low(sys: &Sys, sigma: &[usize], hs: &[Vec<usize>], bmax: usize) ->
     let orbits = var_orbits(&base, hs);
     let sizes: Vec<usize> = orbits.iter().map(|o| o.len()).collect();
     let no = orbits.len();
+    // number of quadruples in which each variable occurs
+    let mut occ = vec![0usize; base.nvars];
+    for &x in &base.quads {
+        let (l, r) = base.quad_terms(x);
+        let mut seen = vec![false; base.nvars];
+        for (i, j) in l.into_iter().chain(r) {
+            for c in [i, j] {
+                if c >= 2 {
+                    seen[c - 2] = true;
+                }
+            }
+        }
+        for (v, s) in seen.iter().enumerate() {
+            if *s {
+                occ[v] += 1;
+            }
+        }
+    }
     let roots_of = |mask: u64| -> (Vec<usize>, usize) {
         let mut order: Vec<usize> = vec![];
         for (i, o) in orbits.iter().enumerate() {
@@ -220,11 +238,16 @@ pub fn choose_low(sys: &Sys, sigma: &[usize], hs: &[Vec<usize>], bmax: usize) ->
             }
         }
         let b = order.len();
+        // high variables: those occurring in few quadruples get the low bits of `alpha`, which
+        // change fastest between consecutive leaves, so that most residuals are shared
+        let mut high: Vec<usize> = vec![];
         for (i, o) in orbits.iter().enumerate() {
             if mask >> i & 1 == 0 {
-                order.extend(o);
+                high.extend(o);
             }
         }
+        high.sort_by_key(|&j| (occ[j], j));
+        order.extend(high);
         (order.into_iter().map(|j| base.reps[j]).collect(), b)
     };
     if base.nvars <= bmax {
@@ -235,7 +258,7 @@ pub fn choose_low(sys: &Sys, sigma: &[usize], hs: &[Vec<usize>], bmax: usize) ->
     let mut cands: Vec<u64> = vec![];
     for mask in 0u64..(1 << no) {
         let sz: usize = (0..no).filter(|i| mask >> i & 1 == 1).map(|i| sizes[i]).sum();
-        if sz <= bmax && sz + 6 >= bmax && base.nvars - sz <= 26 {
+        if sz <= bmax && sz + 6 >= bmax && base.nvars - sz <= 34 {
             cands.push(mask);
         }
     }
@@ -258,8 +281,37 @@ pub fn choose_low(sys: &Sys, sigma: &[usize], hs: &[Vec<usize>], bmax: usize) ->
         let order = move |_p: &Problem, _r: Vec<usize>| roots.clone();
         let p = Problem::new(sys, sigma, &order);
         let grp = BitGroup::new(&p, b, hs);
-        let reps = all_reps(&p, b, &grp);
-        let est = estimate(&p, b, &grp, &reps);
+        let est = if grp.t <= 22 {
+            let reps = all_reps(&p, b, &grp);
+            estimate(&p, b, &grp, &reps)
+        } else {
+            // estimate from a pseudo-random sample of the high assignments
+            let tree = Tree::new(&p, b);
+            let samples = 1u64 << 18;
+            let mut x: u64 = 0x9E3779B97F4A7C15;
+            let (mut canon, mut live) = (0u64, 0u64);
+            let mut assign = vec![2u8; p.nvars];
+            for _ in 0..samples {
+                x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                let alpha = (x >> 20) & ((1u64 << grp.t) - 1);
+                if (0..grp.perms.len()).any(|i| grp.act(i, alpha) < alpha) {
+                    continue;
+                }
+                canon += 1;
+                for i in 0..grp.t {
+                    assign[b + i] = ((alpha >> i) & 1) as u8;
+                }
+                if tree.dead(&assign).is_none() {
+                    live += 1;
+                }
+            }
+            let scale = (1u64 << grp.t) as f64 / samples as f64;
+            let fake: Vec<Rep> = vec![];
+            let per_leaf = estimate(&p, b, &grp, &[Rep { alpha: 0, m: 1, dead: None }]);
+            let per_dead = estimate(&p, b, &grp, &[Rep { alpha: 0, m: 1, dead: Some(0) }]);
+            let _ = fake;
+            scale * (live as f64 * per_leaf + (canon - live) as f64 * per_dead)
+        };
         if best.is_none() || est < best.unwrap().0 {
             best = Some((est, mask));
         }

@@ -41,7 +41,9 @@ theorem digitVal_add (w n : Nat) (f g : Nat → Nat) :
 
 theorem digitVal_const_mul (w n a : Nat) (f : Nat → Nat) :
     digitVal w n (fun k => a * f k) = a * digitVal w n f := by
-  simp only [digitVal, Finset.mul_sum, Nat.mul_assoc]
+  induction n with
+  | zero => simp [digitVal]
+  | succ n ih => rw [digitVal_succ, digitVal_succ, ih]; ring
 
 /-- Regrouping the digits in pairs. -/
 theorem digitVal_two_mul (w m : Nat) (f : Nat → Nat) :
@@ -81,8 +83,9 @@ theorem digitVal_mod_two_pow_sub_one (w n : Nat) (f : Nat → Nat) :
     digitVal w n f % (2 ^ w - 1) = (∑ k ∈ Finset.range n, f k) % (2 ^ w - 1) := by
   have hpow : ∀ k, 2 ^ (w * k) % (2 ^ w - 1) = 1 % (2 ^ w - 1) := fun k => by
     have h1 : 2 ^ w % (2 ^ w - 1) = 1 % (2 ^ w - 1) := by
-      have := Nat.two_pow_pos w
-      conv_lhs => rw [show 2 ^ w = 2 ^ w - 1 + 1 by omega, Nat.add_mod_left]
+      have h2 : (2 ^ w - 1 + 1) % (2 ^ w - 1) = 1 % (2 ^ w - 1) := Nat.add_mod_left _ _
+      have h3 := Nat.two_pow_pos w
+      rwa [show 2 ^ w - 1 + 1 = 2 ^ w by omega] at h2
     rw [pow_mul, Nat.pow_mod, h1, ← Nat.pow_mod, one_pow]
   induction n with
   | zero => simp [digitVal]
@@ -107,8 +110,8 @@ theorem digitVal_and_mask32 {n : Nat} {f : Nat → Nat} (hf : ∀ k, f k < 2 ^ 8
     have h2 : p % 8 = p % 32 := by omega
     have h3 : decide (4 * (p / 32) < 4 * n) = decide (p / 32 < n) := by
       simp only [decide_eq_decide]; omega
-    rw [h1, h2, h3]
-    simp [h]
+    rw [h1, h2, h3, decide_eq_true h]
+    cases decide (p / 32 < n) <;> cases (f (4 * (p / 32))).testBit (p % 32) <;> rfl
   · have h1 : (f (4 * (p / 32))).testBit (p % 32) = false :=
       Nat.testBit_lt_two_pow
         (Nat.lt_of_lt_of_le (hf _) (Nat.pow_le_pow_right (by omega) (by omega)))
@@ -214,34 +217,75 @@ theorem popFast_eq {c x : Nat} (hc : c ≤ 26) (hx : x < 2 ^ 2 ^ (c + 5)) :
     popFast (c + 5) x = popcount (c + 5) x := by
   -- the bits of `x`
   obtain ⟨f0, hf0⟩ : ∃ f0 : Nat → Nat, f0 = fun k => (x.testBit k).toNat := ⟨_, rfl⟩
-  have hb0 : ∀ k, f0 k ≤ 1 := fun k => by rw [hf0]; cases x.testBit k <;> simp
+  have hb0 : ∀ k, f0 k ≤ 1 := fun k => by rw [hf0]; exact Bool.toNat_le _
   have hz0 : ∀ k, 2 ^ (c + 5) ≤ k → f0 k = 0 := fun k hk => by
     rw [hf0]
     simp only [Nat.testBit_lt_two_pow (Nat.lt_of_lt_of_le hx (Nat.pow_le_pow_right (by omega) hk)),
       Bool.toNat_false]
   have hx0 : x = digitVal 1 (2 ^ (c + 5)) f0 := by
     rw [hf0, ← mod_two_pow_eq_digitVal, Nat.mod_eq_of_lt hx]
-  -- the slow count is the sum of the bits
+  -- the slow count is the sum of the bits, which is at most `2 ^ b < 2 ^ 32 - 1`
   have hpop : popcount (c + 5) x = ∑ k ∈ Finset.range (2 ^ (c + 5)), f0 k := by
     have h := popAux_digitVal (b := c + 5) (c + 5) 0 f0 (by omega)
       (fun k => Nat.lt_of_le_of_lt (hb0 k) (by simp))
     rw [pow_zero, ← hx0] at h
     exact h
-  have hle : ∑ k ∈ Finset.range (2 ^ (c + 5)), f0 k ≤ 2 ^ (c + 5) := by
-    have h := Finset.sum_le_sum (s := Finset.range (2 ^ (c + 5))) (fun k _ => hb0 k)
-    simpa using h
-  have hlt : 2 ^ (c + 5) < 4294967295 :=
-    Nat.lt_of_le_of_lt (Nat.pow_le_pow_right (by omega) (show c + 5 ≤ 31 by omega)) (by decide)
+  have hlt : popcount (c + 5) x < 4294967295 := by
+    have h1 : popcount (c + 5) x ≤ 2 ^ (c + 5) := by
+      rw [popcount_eq hx]
+      exact Nat.le_trans (Finset.card_filter_le _ _) (Nat.le_of_eq (Finset.card_range _))
+    have h2 : 2 ^ (c + 5) ≤ 2 ^ 31 := Nat.pow_le_pow_right (by omega) (by omega)
+    omega
+  have hm := mask32_eq c
   have hpow : 2 ^ (c + 5) = 2 * (2 * (2 * (4 * 2 ^ c))) := by rw [pow_add]; omega
-  generalize 2 ^ (c + 5) = N at hz0 hx0 hpop hle hlt hpow
-  have hc' : 0 < c + 5 := by omega
-  generalize 2 ^ c = n at hpow
-  subst hpow
-  -- three SWAR rounds
-  have h1 : swarStep0 (c + 5) x = digitVal 2 (2 * (2 * (4 * n))) (pairSum f0) := by
-    rw [hx0]
-    exact swarStep0_digitVal (by rw [pow_add]; sorry) hc' (fun k => by have := hb0 k; omega)
-  sorry
+  generalize 2 ^ c = n at hpow hm
+  rw [hpow] at hz0 hx0 hpop
+  -- the digits after one, two and three SWAR rounds
+  obtain ⟨f1, hf1⟩ : ∃ f1 : Nat → Nat, f1 = pairSum f0 := ⟨_, rfl⟩
+  obtain ⟨f2, hf2⟩ : ∃ f2 : Nat → Nat, f2 = pairSum f1 := ⟨_, rfl⟩
+  obtain ⟨f3, hf3⟩ : ∃ f3 : Nat → Nat, f3 = pairSum f2 := ⟨_, rfl⟩
+  have hb1 : ∀ k, f1 k ≤ 2 := by rw [hf1]; exact pairSum_le hb0
+  have hz1 : ∀ k, 2 * (2 * (4 * n)) ≤ k → f1 k = 0 := by rw [hf1]; exact pairSum_eq_zero hz0
+  have hb2 : ∀ k, f2 k ≤ 4 := by rw [hf2]; exact pairSum_le hb1
+  have hz2 : ∀ k, 2 * (4 * n) ≤ k → f2 k = 0 := by rw [hf2]; exact pairSum_eq_zero hz1
+  have hb3 : ∀ k, f3 k ≤ 8 := by rw [hf3]; exact pairSum_le hb2
+  have hz3 : ∀ k, 4 * n ≤ k → f3 k = 0 := by rw [hf3]; exact pairSum_eq_zero hz2
+  have h1 : swarStep0 (c + 5) x = digitVal 2 (2 * (2 * (4 * n))) f1 := by
+    rw [hx0, hf1]
+    exact swarStep0_digitVal hpow.symm (by omega) (fun k => Nat.lt_succ_of_le (hb0 k))
+  have h2 : swarStep (c + 5) 1 (digitVal 2 (2 * (2 * (4 * n))) f1) =
+      digitVal 4 (2 * (4 * n)) f2 := by
+    rw [hf2]
+    exact swarStep_digitVal (j := 1) (by rw [hpow]; omega) (by omega)
+      (fun k => Nat.lt_of_le_of_lt (hb1 k) (by decide))
+  have h3 : swarStepC (c + 5) 2 (digitVal 4 (2 * (4 * n)) f2) = digitVal 8 (4 * n) f3 := by
+    rw [hf3]
+    exact swarStepC_digitVal (j := 2) (by rw [hpow]; omega) (by omega)
+      (fun k => Nat.lt_of_le_of_lt (Nat.add_le_add (hb2 k) (hb2 (k + 1))) (by decide)) hz2
+  -- two unmasked additions: every byte becomes the sum of four consecutive bytes
+  have h4 : addShift 8 (digitVal 8 (4 * n) f3) =
+      digitVal 8 (4 * n) (fun k => f3 k + f3 (k + 1)) :=
+    addShift_digitVal (w := 8) (by omega) (fun k => Nat.lt_of_le_of_lt (hb3 k) (by decide)) hz3 1
+  have h5 : addShift 16 (digitVal 8 (4 * n) (fun k => f3 k + f3 (k + 1))) =
+      digitVal 8 (4 * n) (fun k => f3 k + f3 (k + 1) + (f3 (k + 2) + f3 (k + 2 + 1))) :=
+    addShift_digitVal (w := 8) (by omega)
+      (fun k => Nat.lt_of_le_of_lt (Nat.add_le_add (hb3 k) (hb3 (k + 1))) (by decide))
+      (fun k hk => by rw [hz3 k hk, hz3 (k + 1) (by omega)]) 2
+  -- keep one byte per 32-bit field and add the fields up
+  have h6 : digitVal 8 (4 * n) (fun k => f3 k + f3 (k + 1) + (f3 (k + 2) + f3 (k + 2 + 1))) &&&
+      mask32 (c + 5) =
+      digitVal 32 n (fun k => f3 (4 * k) + f3 (4 * k + 1) + (f3 (4 * k + 2) + f3 (4 * k + 3))) := by
+    rw [hm]
+    exact digitVal_and_mask32 (fun k => Nat.lt_of_le_of_lt
+      (Nat.add_le_add (Nat.add_le_add (hb3 k) (hb3 (k + 1)))
+        (Nat.add_le_add (hb3 (k + 2)) (hb3 (k + 2 + 1)))) (by decide))
+  have h7 := digitVal_mod_two_pow_sub_one 32 n
+    (fun k => f3 (4 * k) + f3 (4 * k + 1) + (f3 (4 * k + 2) + f3 (4 * k + 3)))
+  rw [show 2 ^ 32 - 1 = 4294967295 by decide, ← sum_range_four_mul, hf3, sum_pairSum, hf2,
+    sum_pairSum, hf1, sum_pairSum, ← hpop, ← hf1, ← hf2, ← hf3] at h7
+  change (addShift 16 (addShift 8 (swarStepC (c + 5) 2 (swarStep (c + 5) 1
+    (swarStep0 (c + 5) x)))) &&& mask32 (c + 5)) % 4294967295 = _
+  rw [h1, h2, h3, h4, h5, h6, h7, Nat.mod_eq_of_lt hlt]
 
 /-- Population count of `x < 2^(2^b)` with few big operations. -/
 def popcountF (b x : Nat) : Nat :=

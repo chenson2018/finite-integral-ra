@@ -54,10 +54,6 @@ impl Problem {
     pub fn tcode(&self, a: usize, b: usize, c: usize) -> usize {
         (a * self.k + b) * self.k + c
     }
-    pub fn qcode(&self, r: usize, u: usize, t: usize, p: usize) -> usize {
-        ((r * self.k + u) * self.k + t) * self.k + p
-    }
-
     /// Build the problem for `sigma`. `order` chooses the numbering of the variables: it receives
     /// the list of orbit representatives (triple codes, increasing) and returns them in the order
     /// in which they should be numbered.

@@ -29,6 +29,10 @@ fn main() {
         lean::stats(s, n, bmax, ord);
         return;
     }
+    if args.len() >= 6 && args[1] == "plan" {
+        lean::plan(args[2].parse().unwrap(), args[3].parse().unwrap(), args[4].parse().unwrap(), args[5].parse().unwrap());
+        return;
+    }
     if args.len() >= 4 && args[1] == "quadstats" {
         lean::quadstats(args[2].parse().unwrap(), args[3].parse().unwrap());
         return;

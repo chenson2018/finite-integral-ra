@@ -393,6 +393,11 @@ theorem LiveProofs.nil {b : ℕ} : LiveProofs P b [] := trivial
 theorem LiveProofs.cons {b α v : ℕ} {es : List (ℕ × ℕ)} (h : P.leaf b α = v)
     (hs : LiveProofs P b es) : LiveProofs P b ((α, v) :: es) := ⟨h, hs⟩
 
+theorem LiveProofs.append {b : ℕ} : ∀ {l₁ l₂ : List (ℕ × ℕ)},
+    LiveProofs P b l₁ → LiveProofs P b l₂ → LiveProofs P b (l₁ ++ l₂)
+  | [], _, _, h₂ => h₂
+  | _ :: _, _, h₁, h₂ => ⟨h₁.1, LiveProofs.append h₁.2 h₂⟩
+
 /-- Evaluate the weighted sum of the leaves of a segment of orbit minima `(α, m)`: an entry with
 evidence `0` takes its value from the next element of `live`, an entry with evidence `x + 1` is
 checked to vanish because of the quadruple with code `x`. The result must be `W`. -/

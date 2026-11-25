@@ -24,11 +24,6 @@ public import Solution.Atoms7.S0N3.C0.S13
 public import Solution.Atoms7.S0N3.C0.S14
 public import Solution.Atoms7.S0N3.C0.S15
 public import Solution.Atoms7.S0N3.C0.S16
-public import Solution.Atoms7.S0N3.C0.S17
-public import Solution.Atoms7.S0N3.C0.S18
-public import Solution.Atoms7.S0N3.C0.S19
-public import Solution.Atoms7.S0N3.C0.S20
-public import Solution.Atoms7.S0N3.C0.S21
 
 /-! Generated certificate (see `certgen`): symmetry class 0 of type (0, 3). -/
 
@@ -43,7 +38,7 @@ namespace RACert.S0N3.C0
 open RACert RACert.Problem
 
 theorem total : OrbitSeg 20 perms (P.leaf 18) 0 1048576 1048576 203664497 :=
-  OrbitSeg.cast ((S0.total).append ((S1.total).append ((S2.total).append ((S3.total).append ((S4.total).append ((S5.total).append ((S6.total).append ((S7.total).append ((S8.total).append ((S9.total).append ((S10.total).append ((S11.total).append ((S12.total).append ((S13.total).append ((S14.total).append ((S15.total).append ((S16.total).append ((S17.total).append ((S18.total).append ((S19.total).append ((S20.total).append (S21.total))))))))))))))))))))))
+  OrbitSeg.cast ((S0.total).append ((S1.total).append ((S2.total).append ((S3.total).append ((S4.total).append ((S5.total).append ((S6.total).append ((S7.total).append ((S8.total).append ((S9.total).append ((S10.total).append ((S11.total).append ((S12.total).append ((S13.total).append ((S14.total).append ((S15.total).append (S16.total)))))))))))))))))
     (by decide +kernel) (by decide +kernel)
 
 /-- The number of lawful cycle sets invariant under the symmetry of this class. -/

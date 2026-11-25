@@ -30,11 +30,14 @@ def seg : List (ℕ × ℕ) :=
 def ev : List ℕ :=
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-/-- The evaluated leaves `(α, value)`. -/
-def live : List (ℕ × ℕ) :=
+/-- Evaluated leaves `(α, value)`, part 0. -/
+def live0 : List (ℕ × ℕ) :=
   [(0, 3218), (1, 2778), (3, 2571), (7, 2490), (8, 3733), (9, 3810), (11, 4078), (15, 4470), (24, 12968), (25, 15164), (27, 18045), (28, 12956), (29, 15959), (31, 19643), (56, 36874), (57, 45172), (59, 56696), (63, 71648), (120, 122802), (121, 178147), (123, 245819), (127, 331798)]
 
-theorem leavesOK : P.checkLeavesR 21 qm live = true := by decide +kernel
+theorem leavesOK0 : P.checkLeavesR 21 qm live0 = true := by decide +kernel
+
+/-- All evaluated leaves of this segment. -/
+def live : List (ℕ × ℕ) := live0 ++ ([])
 
 theorem segOK : checkSeg 7 perms 0 128 seg = true := by decide +kernel
 
@@ -42,7 +45,7 @@ theorem evOK : P.checkEv 21 seg ev live 0 4287373 = true := by decide +kernel
 
 theorem total : OrbitSeg 7 perms (P.leaf 21) 0 128 128 4287373 :=
   OrbitSeg.of_check segOK (by decide +kernel)
-    (checkEv_sum check rows evOK (checkLeavesR_spec rows qmOK leavesOK))
+    (checkEv_sum check rows evOK (.append (checkLeavesR_spec rows qmOK leavesOK0) (.nil)))
 
 end S0
 
