@@ -473,6 +473,22 @@ pub fn symplan(s: usize, n: usize, bmax: usize) {
             if cnt > 0 {
                 println!("    avg per live leaf: ands {} ors {} xors {} bad-ors {} equal-sides {}", tot.0 / cnt, tot.1 / cnt, tot.2 / cnt, tot.3 / cnt, tot.4 / cnt);
             }
+            // sharing of canonical operations among groups of consecutive live minima
+            let lives: Vec<u64> = reps.iter().filter(|r| r.dead.is_none()).map(|r| r.alpha).collect();
+            for g in [1usize, 2, 4, 8, 16, 32, 64] {
+                let mut total = 0usize;
+                let mut leaves = 0usize;
+                for grp in lives.chunks(g).step_by((lives.len() / g / 500).max(1)) {
+                    let mut keys = std::collections::HashSet::new();
+                    for &a in grp {
+                        total += crate::leaf::op_keys(&ev, a, &mut keys);
+                        leaves += 1;
+                    }
+                }
+                if leaves > 0 {
+                    println!("    group size {:>2}: {:.0} distinct canonical ops per leaf", g, total as f64 / leaves as f64);
+                }
+            }
         }
         let w: u64 = reps.iter().map(|r| r.m).sum();
         println!("  class {} vars {} |C| {} bit-group {} b {} t {}: reps {} live {} (weights ok: {}) est {:.0}s ({:?})", i, p.nvars, hs.len(), grp.perms.len(), b, grp.t, reps.len(), live, w == 1 << grp.t, estimate(&p, b, &grp, &reps), t0.elapsed());

@@ -172,3 +172,60 @@ pub fn op_counts(ev: &Evaluator, alpha: u64) -> (usize, usize, usize, usize, usi
     let _ = p;
     (ands.len(), ors, xors, bors, eqs)
 }
+
+/// Keys of the big-number operations a "symbolic" evaluator would perform for one leaf, where
+/// every operation is identified by its canonical expression (so that equal expressions are
+/// computed once per declaration by the kernel's cache).
+pub fn op_keys(ev: &Evaluator, alpha: u64, keys: &mut std::collections::HashSet<u64>) -> usize {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let b = ev.b;
+    let kind = |code: usize| -> u8 {
+        match code {
+            0 => 0,
+            1 => 1,
+            c => { let j = c - 2; if j < b { 2 } else { ((alpha >> (j - b)) & 1) as u8 } }
+        }
+    };
+    let h2 = |tag: u8, a: u64, c: u64| -> u64 { let mut h = DefaultHasher::new(); (tag, a, c).hash(&mut h); h.finish() };
+    let mut count = 0usize;
+    // value: 0 = false, 1 = true, otherwise hash of canonical expression (>= 2)
+    let mut dot = |terms: &[(usize, usize)], keys: &mut std::collections::HashSet<u64>, count: &mut usize| -> u64 {
+        let mut acc: u64 = 0;
+        for &(i, j) in terms {
+            let (x, y) = (kind(i), kind(j));
+            if x == 0 || y == 0 { continue; }
+            if x == 1 && y == 1 { return 1; }
+            let term = if x == 2 && y == 2 {
+                let k = h2(1, i.min(j) as u64, i.max(j) as u64) | 2;
+                if keys.insert(k) { *count += 1; }
+                k
+            } else if x == 2 { h2(0, i as u64, 0) | 2 } else { h2(0, j as u64, 0) | 2 };
+            acc = if acc == 0 { term } else {
+                let k = h2(2, acc, term) | 2;
+                if keys.insert(k) { *count += 1; }
+                k
+            };
+        }
+        acc
+    };
+    let mut bad: u64 = 0;
+    for (l, r) in &ev.terms {
+        let vl = dot(l, keys, &mut count);
+        let vr = dot(r, keys, &mut count);
+        if vl <= 1 && vr <= 1 {
+            if vl != vr { break; }
+            continue;
+        }
+        if vl == vr { continue; }
+        let (a, c) = (vl.min(vr), vl.max(vr));
+        let x = h2(3, a, c) | 2;
+        if keys.insert(x) { count += 1; }
+        bad = if bad == 0 { x } else {
+            let k = h2(4, bad, x) | 2;
+            if keys.insert(k) { count += 1; }
+            k
+        };
+    }
+    count
+}
