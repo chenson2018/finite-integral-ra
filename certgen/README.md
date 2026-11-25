@@ -124,8 +124,9 @@ the malloc settings above), from a state where `Solution/Theory` and `Solution/C
 | (1,2) (3,1) (5,0) | 6 | 47965, 988464, 3849920 | 6, 26, 29 leaves with 1, 3, 5 eliminated variables | seconds |
 | (0,3) | 7 | 4492953 | 24432 orbit minima, 5571 leaves | about half a minute |
 | (2,2) | 7 | 2186435732 | 277824 orbit minima, 65947 leaves, 2 eliminated variables | about 4 minutes |
+| (4,1) | 7 | 50265788140 | 1446336 orbit minima, 218422 leaves, 4 eliminated variables | 17 minutes |
 
-Not yet covered: `(4,1)`, `(6,0)` and `(1,3)`; consequently also the 7-atom total.
+Not yet covered: `(6,0)` and `(1,3)`; consequently also the 7-atom total.
 `certgen plan <s> <n> <bmin> <bmax>` estimates the certificate size and the single-thread
 kernel time of the identity class for the possible choices of low variables, and
 `certgen ops <s> <n> <bmax> [leaves per theorem]` simulates the sharing of big-number operations.
