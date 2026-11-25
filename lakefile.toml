@@ -1,0 +1,22 @@
+name = "finite-integral-ra"
+version = "0.1.0"
+keywords = ["math"]
+defaultTargets = ["Challenge"]
+
+[leanOptions]
+pp.unicode.fun = true # pretty-prints `fun a ↦ b`
+relaxedAutoImplicit = false
+weak.linter.mathlibStandardSet = true
+weak.linter.style.header = false
+maxSynthPendingDepth = 3
+
+[[require]]
+name = "cslib"
+git = "https://github.com/leanprover/cslib"
+rev = "chenson2018/integral-atom-structure" # leanprover/cslib#1281
+
+[[lean_lib]]
+name = "Challenge"
+
+[[lean_lib]]
+name = "Solution"
