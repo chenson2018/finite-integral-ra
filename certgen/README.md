@@ -131,7 +131,7 @@ Checking everything below together takes 97 minutes (18 CPU-hours).
 | (6,0) | 7 | 292352449486 | 1540944 orbit minima, all evaluated, 6 eliminated variables | about 80 minutes |
 
 This gives the totals for up to 7 atoms (`encard_ofAtoms_seven`: 344809166311). Not covered:
-`(1,3)`, the only type with 8 atoms in the challenge. Its identity class has 63 variables, only
+`(1,3)`, a type with 8 atoms. Its identity class has 63 variables, only
 one of which can be eliminated; with tables of `2^20` bits this leaves 42 high variables, i.e.
 about `10^11` orbits of assignments under its 48 symmetries, of which about `6 * 10^9` need a
 truth table (`certgen plan 1 3 19 22`): some 26000 CPU-hours of kernel time and a certificate of
