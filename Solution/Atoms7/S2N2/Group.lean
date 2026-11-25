@@ -1,0 +1,64 @@
+/-
+Copyright (c) 2026 Chris Henson. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Chris Henson
+-/
+
+module
+
+public import Solution.Cert.Group
+public import Solution.Atoms7.S2N2.C0
+public import Solution.Atoms7.S2N2.C1
+public import Solution.Atoms7.S2N2.C2
+public import Solution.Atoms7.S2N2.C3
+public import Solution.Atoms7.S2N2.C4
+public import Solution.Atoms7.S2N2.C5
+public import Solution.Atoms7.S2N2.C6
+public import Solution.Atoms7.S2N2.C7
+public import Solution.Atoms7.S2N2.C8
+public import Solution.Atoms7.S2N2.C9
+
+/-! Generated certificate (see `certgen`): Burnside count for type (2, 2). -/
+
+set_option linter.style.longLine false
+set_option maxRecDepth 100000
+set_option Elab.async false
+
+@[expose] public section
+
+namespace RACert.S2N2
+
+open RACert
+
+/-- Representatives of the conjugacy classes of the symmetry group. -/
+def reps : List (List ℕ) :=
+  [[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 6, 5], [0, 1, 2, 4, 3, 6, 5], [0, 1, 2, 5, 6, 3, 4], [0, 1, 2, 5, 6, 4, 3], [0, 2, 1, 3, 4, 5, 6], [0, 2, 1, 3, 4, 6, 5], [0, 2, 1, 4, 3, 6, 5], [0, 2, 1, 5, 6, 3, 4], [0, 2, 1, 5, 6, 4, 3]]
+
+/-- All elements of the symmetry group, with their class and a conjugator. -/
+def elems : List (List ℕ × ℕ × List ℕ) :=
+  [([0, 1, 2, 3, 4, 5, 6], 0, [0, 1, 2, 3, 4, 5, 6]),
+   ([0, 1, 2, 3, 4, 6, 5], 1, [0, 1, 2, 3, 4, 5, 6]),
+   ([0, 1, 2, 4, 3, 5, 6], 1, [0, 1, 2, 5, 6, 3, 4]),
+   ([0, 1, 2, 4, 3, 6, 5], 2, [0, 1, 2, 3, 4, 5, 6]),
+   ([0, 1, 2, 5, 6, 3, 4], 3, [0, 1, 2, 3, 4, 5, 6]),
+   ([0, 1, 2, 5, 6, 4, 3], 4, [0, 1, 2, 3, 4, 5, 6]),
+   ([0, 1, 2, 6, 5, 3, 4], 4, [0, 1, 2, 3, 4, 6, 5]),
+   ([0, 1, 2, 6, 5, 4, 3], 3, [0, 1, 2, 3, 4, 6, 5]),
+   ([0, 2, 1, 3, 4, 5, 6], 5, [0, 1, 2, 3, 4, 5, 6]),
+   ([0, 2, 1, 3, 4, 6, 5], 6, [0, 1, 2, 3, 4, 5, 6]),
+   ([0, 2, 1, 4, 3, 5, 6], 6, [0, 1, 2, 5, 6, 3, 4]),
+   ([0, 2, 1, 4, 3, 6, 5], 7, [0, 1, 2, 3, 4, 5, 6]),
+   ([0, 2, 1, 5, 6, 3, 4], 8, [0, 1, 2, 3, 4, 5, 6]),
+   ([0, 2, 1, 5, 6, 4, 3], 9, [0, 1, 2, 3, 4, 5, 6]),
+   ([0, 2, 1, 6, 5, 3, 4], 9, [0, 1, 2, 3, 4, 6, 5]),
+   ([0, 2, 1, 6, 5, 4, 3], 8, [0, 1, 2, 3, 4, 6, 5])]
+
+theorem groupCert : checkGroup 2 2 reps elems = true := by decide +kernel
+
+/-- The number of isomorphism classes of integral relation algebras of type (2, 2). -/
+theorem count : (Cslib.RelationAlgebra.IntegralAlgebra.IsoClass.ofSymmNsymm 2 2).encard = (2186435732 : ℕ) :=
+  encard_ofSymmNsymm_of_groupCert' 2 2 2186435732 reps elems [34608025790, 129381732, 105880110, 1301168, 26170, 1296088, 1315498, 3604496, 51034, 7012] groupCert
+    (.cons C0.count (.cons C1.count (.cons C2.count (.cons C3.count (.cons C4.count (.cons C5.count (.cons C6.count (.cons C7.count (.cons C8.count (.cons C9.count (.nil)))))))))))
+    (by decide +kernel)
+
+end RACert.S2N2
