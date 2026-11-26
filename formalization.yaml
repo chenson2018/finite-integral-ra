@@ -1,0 +1,138 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mathlib-initiative/formalization.yaml/main/schema/formalization.schema.json
+# formalization.yaml (v0.4): repo-root metadata for formalization projects.
+
+version: "v0.4"
+
+# project - the formalization itself (not the source).
+project:
+  name: "finite-integral-ra"
+  description: "Classification of finite integral relation algebras."          # mathematical content and principal results
+  authors: ["Chris Henson"]
+  responsible_maintainers: ["Chris Henson"]
+  license: "Apache-2.0"
+
+# sources - what was formalized.
+sources:
+  - title: "CSLib: Cslib/Foundations/RelationAlgebra/IntegralAtomStructure.lean"
+    authors: ["Chris Henson"]
+    id: "https://github.com/leanprover/cslib/blob/910210f7d155e22a2244591e394bd16fbb0ddbb3/Cslib/Foundations/RelationAlgebra/IntegralAtomStructure.lean"
+    type: "formal library"
+    location: "theorem_wanted statements in namespace IsoClass"
+    relationship: "formalizes"
+    license: "Apache-2.0"
+    author_endorsement: "participated"
+  - title: "Small relation algebras: list of small integral relation algebras"
+    authors: ["Peter Jipsen"]
+    contributors:
+      - name: "Roger Maddux"
+        role: "author cited in table"
+    id: "https://www1.chapman.edu/~jipsen/gap/ramaddux.html"
+    type: "web page"
+    location: "table of counts by type <1,s,n>, rows with 1 + s + 2n <= 7"
+    relationship: "independently-proves"
+  - title: "Introduction to Relation Algebras: Relation Algebras, Volume 1"
+    authors: ["Steven Givant"]
+    id: "doi:10.1007/978-3-319-65235-1"
+    type: "book"
+    location: "Section 4.2"
+    relationship: "background"
+    author_endorsement: "n/a"
+  - title: "Advanced Topics in Relation Algebras: Relation Algebras, Volume 2"
+    authors: ["Steven Givant"]
+    id: "doi:10.1007/978-3-319-65945-9"
+    type: "book"
+    location: "Section 19.3"
+    relationship: "background"
+    author_endorsement: "n/a"
+
+# related_formalizations - prior or parallel formalizations, if known.
+related_formalizations: []
+
+# classification - arXiv taxonomy and MSC2020 identifiers.
+classification:
+  arxiv: ["math.LO", "cs.LO", "math.CO"]
+  msc2020: ["03G15", "05A15", "68V20"]
+
+# project status
+status:
+  scope: "Classification of small finite integral relation algebras. Currently includes counts of isomorphism classes through 7 atoms."                # describe the scope of the project
+  sorry_count: 0
+  sorry_in_definitions: 0
+  axioms: ["propext", "Classical.choice", "Quot.sound"]
+  main_results:
+  - declaration: "Cslib.RelationAlgebra.IntegralAtom.IsoClass.card_ofAtoms_one"
+    file: "Solution/Atoms1/Total.lean"
+    sorry_count: 0
+    axioms: ["propext", "Classical.choice", "Quot.sound"]
+    comparator_config: "comparator.json"
+    literature_dependencies: []
+  - declaration: "Cslib.RelationAlgebra.IntegralAtom.IsoClass.card_ofAtoms_two"
+    file: "Solution/Atoms2/Total.lean"
+    sorry_count: 0
+    axioms: ["propext", "Classical.choice", "Quot.sound"]
+    comparator_config: "comparator.json"
+    literature_dependencies: []
+  - declaration: "Cslib.RelationAlgebra.IntegralAtom.IsoClass.card_ofAtoms_three"
+    file: "Solution/Atoms3/Total.lean"
+    sorry_count: 0
+    axioms: ["propext", "Classical.choice", "Quot.sound"]
+    comparator_config: "comparator.json"
+    literature_dependencies: []
+  - declaration: "Cslib.RelationAlgebra.IntegralAtom.IsoClass.card_ofAtoms_four"
+    file: "Solution/Atoms4/Total.lean"
+    sorry_count: 0
+    axioms: ["propext", "Classical.choice", "Quot.sound"]
+    comparator_config: "comparator.json"
+    literature_dependencies: []
+  - declaration: "Cslib.RelationAlgebra.IntegralAtom.IsoClass.card_ofAtoms_five"
+    file: "Solution/Atoms5/Total.lean"
+    sorry_count: 0
+    axioms: ["propext", "Classical.choice", "Quot.sound"]
+    comparator_config: "comparator.json"
+    literature_dependencies: []
+  - declaration: "Cslib.RelationAlgebra.IntegralAtom.IsoClass.card_ofAtoms_six"
+    file: "Solution/Atoms6/Total.lean"
+    sorry_count: 0
+    axioms: ["propext", "Classical.choice", "Quot.sound"]
+    comparator_config: "comparator.json"
+    literature_dependencies: []
+  - declaration: "Cslib.RelationAlgebra.IntegralAtom.IsoClass.card_ofAtoms_seven"
+    file: "Solution/Atoms7/Total.lean"
+    sorry_count: 0
+    axioms: ["propext", "Classical.choice", "Quot.sound"]
+    comparator_config: "comparator.json"
+    literature_dependencies: []
+
+# how it was produced
+automation:
+  methods:
+    - method: "agent"
+      models: ["claude-fable-5-2"]
+      framework: "Claude Code"
+      cost:
+        wall_time: "~11.5 active hours"
+        spend_usd: "about $175 at API list prices (estimate: 242M tokens, 1.87M output)"
+        hardware: "AMD Ryzen AI 5 PRO 340 laptop (6 cores / 12 threads), 86 GiB RAM"
+  spend_usd: "about $198 at API list prices including post-proof cleanup"
+
+# review status
+review:
+  status: "definitions reviewed in cslib, passing Comparator"
+  reviewers: ["Thomas Waring"]
+  notes: "Definitions and statements were closely reviewed in cslib pull requests."
+
+# alignment - how source statements map to formal declarations.
+alignment:
+  namespace: "Cslib.RelationAlgebra.IntegralAtom.IsoClass"
+  statements:
+    - source: "Jipsen's table, rows <1,s,n> with 1 + s + 2n <= 7"
+      lean: "card_ofSymmNsymm_<s>_<n>"
+      module: "Solution/Atoms<k>/Symm<s>Nsymm<n>.lean"
+      status: "proved"
+    - source: "Totals for k = 1..7 atoms (sums of Jipsen's rows)"
+      lean: "card_ofAtoms_*"
+      module: "Solution/Atoms<k>/Total.lean"
+      status: "proved"
+    - source: "Jipsen's table, row <1,1,3> (8 atoms)"
+      lean: "card_ofSymmNsymm_one_three (CSLib theorem_wanted)"
+      status: "not-formalized"
