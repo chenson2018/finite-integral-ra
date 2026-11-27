@@ -215,7 +215,7 @@ theorem sumOK18 : P.sumEvE 20 4 qt ow qmFlat seg18 ev18 0 2205263664 = true := b
 /-- All orbit minima of this file. -/
 def seg : List (ℕ × ℕ) := seg0 ++ (seg1 ++ (seg2 ++ (seg3 ++ (seg4 ++ (seg5 ++ (seg6 ++ (seg7 ++ (seg8 ++ (seg9 ++ (seg10 ++ (seg11 ++ (seg12 ++ (seg13 ++ (seg14 ++ (seg15 ++ (seg16 ++ (seg17 ++ (seg18))))))))))))))))))
 
-theorem segOK : checkSeg 26 perms 23810007 23822311 seg = true := by decide +kernel
+theorem segOK : checkSeg 26 perms 23810007 23822311 seg = true := checkSeg_of_cols colsOK (by decide +kernel)
 
 theorem total : OrbitSeg 26 perms (P.leaf (20 + 4)) 23810007 23822311 247560 18393052296 :=
   OrbitSeg.of_checkSum segOK (by decide +kernel)

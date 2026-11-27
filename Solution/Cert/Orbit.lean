@@ -972,6 +972,11 @@ theorem segLoop_spec {t hi : ℕ} {perms : List (List ℕ × List ℕ)} (hhi : h
     · exact ⟨hlo, g1, hrep⟩
     · exact ⟨Nat.le_trans hlo (Nat.le_of_succ_le (g3 e he).1), (g3 e he).2⟩
 
+/-- Check a segment using the bit-matrix columns for a group of order `N`. -/
+noncomputable def checkSegCols (t N : ℕ) (cs : List ℕ) (lo hi : ℕ) (seg : List (ℕ × ℕ)) : Bool :=
+  and3 (Nat.ble hi (Nat.pow 2 t)) (Nat.ble lo hi)
+    (segLoop t N (Nat.succ (Nat.log2 N)) (Nat.sub (Nat.pow 2 N) 1) (Nat.pow 2 N) hi cs seg lo)
+
 /-- Segment check. `seg` lists pairs `(α, m)`. Checks: `lo ≤ hi ≤ 2 ^ t`; the `α`'s are strictly
 increasing and lie in `[lo, hi)`; each `α` is the minimum of its orbit (`α ≤ actBits t p α` for
 every `(p, q)` in `perms`); and `m` times the number of permutations in `perms` fixing `α` is
@@ -982,10 +987,13 @@ bit matrix (see `imgMat` and `rowLoop`), so that the cost per entry is `O(t)` op
 numbers with `t * (perms.length + 1)` bits. -/
 noncomputable def checkSeg (t : ℕ) (perms : List (List ℕ × List ℕ)) (lo hi : ℕ)
     (seg : List (ℕ × ℕ)) : Bool :=
-  and3 (Nat.ble hi (Nat.pow 2 t)) (Nat.ble lo hi)
-    (segLoop t perms.length (Nat.succ (Nat.log2 perms.length))
-      (Nat.sub (Nat.pow 2 perms.length) 1) (Nat.pow 2 perms.length) hi
-      (cols t perms.length perms) seg lo)
+  checkSegCols t perms.length (cols t perms.length perms) lo hi seg
+
+/-- Certificates for one class can share a single proof of their precomputed columns. -/
+theorem checkSeg_of_cols {t lo hi : ℕ} {perms : List (List ℕ × List ℕ)} {cs : List ℕ}
+    {seg : List (ℕ × ℕ)} (hc : cols t perms.length perms = cs)
+    (hs : checkSegCols t perms.length cs lo hi seg = true) : checkSeg t perms lo hi seg = true := by
+  simpa only [checkSeg, hc] using hs
 
 /-- A certified part of an orbit sum: there is a list of orbit minima in `[lo, hi)`, with their
 orbit sizes, with total orbit size `M` and weighted sum `W`. -/
@@ -998,7 +1006,7 @@ theorem OrbitSeg.of_check {t : ℕ} {perms : List (List ℕ × List ℕ)} {F : �
     {seg : List (ℕ × ℕ)} {M W : ℕ} (h : checkSeg t perms lo hi seg = true)
     (hM : (seg.map Prod.snd).sum = M) (hW : (seg.map fun e => e.2 * F e.1).sum = W) :
     OrbitSeg t perms F lo hi M W := by
-  rw [checkSeg, and3_eq_true] at h
+  rw [checkSeg, checkSegCols, and3_eq_true] at h
   obtain ⟨h1, h2, h3⟩ := h
   have hhi : hi ≤ 2 ^ t := Nat.le_of_ble_eq_true h1
   obtain ⟨_, g2, g3⟩ := segLoop_spec hhi seg lo h3

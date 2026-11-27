@@ -75,7 +75,7 @@ theorem sumOK4 : P.sumEvE 20 2 qt ow qmFlat seg4 ev4 0 10551216 = true := by dec
 /-- All orbit minima of this file. -/
 def seg : List (ℕ × ℕ) := seg0 ++ (seg1 ++ (seg2 ++ (seg3 ++ (seg4))))
 
-theorem segOK : checkSeg 22 perms 362384 372092 seg = true := by decide +kernel
+theorem segOK : checkSeg 22 perms 362384 372092 seg = true := checkSeg_of_cols colsOK (by decide +kernel)
 
 theorem total : OrbitSeg 22 perms (P.leaf (20 + 2)) 362384 372092 89792 52052160 :=
   OrbitSeg.of_checkSum segOK (by decide +kernel)

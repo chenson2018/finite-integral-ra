@@ -55,6 +55,8 @@ The Lean development (`Solution/Theory`, `Solution/Cert`) reduces
    minimum, with the orbit size as weight) is needed. The certificate lists the orbit minima in
    files; the minima of a file are checked by one theorem (`checkSeg`: minimality and orbit size
    of every listed assignment), and the total orbit size `2^t` proves that no orbit is missing.
+   When a class spans multiple files, its `Defs` module supplies the bit-matrix columns for
+   the permutations and checks them once against `cols`. Each segment uses these columns.
    Minima whose high variables already violate a condition are discharged without a truth table
    (`deadR`).
 
@@ -71,11 +73,10 @@ The Lean development (`Solution/Theory`, `Solution/Cert`) reduces
    (`Solution/Cert/WPop.lean`). `checkElim` validates the classification of the conditions; a
    condition whose two sides are the same pair of rows holds trivially and is dropped.
 
-7. **Sharing between leaves** (`Solution/Cert/Elim.lean`, `Side.lean`). A file is divided into
-   parts of a few dozen evaluated leaves; the weighted sum of the leaves of a part is checked by
-   one theorem (`sumEvE`), and the evaluator is written so that the
-   kernel, which caches the value of every expression within a declaration, evaluates each
-   distinct table once:
+7. **Sharing between leaves** (`Solution/Cert/Elim.lean`, `Side.lean`). Each part has a theorem
+   (`sumEvE`) checking its weighted sum. For the identity class of (6,0), a theorem checks up
+   to 160 evaluated leaves and each file holds up to 12 such parts. The evaluator lets the
+   kernel cache each distinct table within a declaration:
    * each side of a condition is pre-classified (`Side`: terms guarded by high variables, and
      terms independent of them), so that evaluating it takes a few reduction steps;
    * the conditions form a binary tree (`QTree`), and every subtree is evaluated as a function of
@@ -109,14 +110,16 @@ the only axioms are `propext`, `Quot.sound` and `Classical.choice`.
   memory until the end of the file.
 * Files are split so that `lake` checks them in parallel. Checking is dominated by memory
   traffic, so the speed-up from many threads is limited (about 3–4 on a 12-thread laptop CPU).
-  A file being checked needs up to 4 GB of memory, so a parallel build needs about that much per
-  job (about 30 GB in total on 12 threads).
+  In a 12-job sample, a (6,0) segment with 160-leaf theorems and shared columns used about
+  4 GiB at peak.
+  The shared (6,0) definitions module used about 11 GiB while building.
 
 ## Status
 
 Checking times are wall-clock for `lake build Solution` on a 12-thread laptop CPU, from a state
 where `Solution/Theory` and `Solution/Cert` are built.
-Checking everything below together takes 97 minutes (18 CPU-hours).
+The timings below were recorded before the switch to 160-leaf theorems and shared permutation
+columns. That build took 97 minutes (18 CPU-hours).
 
 | type `(s, n)` | atoms | count | certificate | check |
 |---|---|---|---|---|
@@ -128,6 +131,14 @@ Checking everything below together takes 97 minutes (18 CPU-hours).
 | (2,2) | 7 | 2186435732 | 277824 orbit minima, 65947 leaves, 2 eliminated variables | about 4 minutes |
 | (4,1) | 7 | 50265788140 | 1446336 orbit minima, 218422 leaves, 4 eliminated variables | about 15 minutes |
 | (6,0) | 7 | 292352449486 | 1540944 orbit minima, all evaluated, 6 eliminated variables | about 80 minutes |
+
+On the same laptop, a later benchmark built the six `Solution.Atoms{k}.Total` targets together
+with fresh project artifacts and cached dependencies. Median time was 26.7 s before these
+changes and 25.1 s afterward. Release-mode certificate generation through six atoms took 0.58 s
+and 0.35 s respectively and produced identical files. For the seven-atom (6,0) identity class,
+12 concurrent segment builds (S30, S96, …, S756) with shared definitions already built averaged
+55.7 s with the original certificates, 48.9 s with larger theorems, and 47.4 s with both larger
+theorems and shared columns. Each segment configuration was timed twice.
 
 This gives the totals for up to 7 atoms (`card_ofAtoms_seven`: 344809166311). Not covered:
 `(1,3)`, a type with 8 atoms. Its identity class has 63 variables, only

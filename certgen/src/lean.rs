@@ -315,9 +315,6 @@ fn trees(p: &Problem, b: usize, m: usize, tags: &[Option<usize>]) -> (QTree, Vec
     (qt, ow)
 }
 
-/// Maximal number of parts in one segment file.
-const FILE_PARTS: usize = 24;
-
 /// Maximal number of orbit minima in one segment file (they are checked by one theorem).
 const FILE_REPS: usize = 6000;
 
@@ -332,16 +329,39 @@ pub fn leaf_ops(m: usize) -> usize {
     50 + 3 * m * (m + 1) / 2 + 2 * m + WPOP[(m + 1).min(8)]
 }
 
-/// Maximal number of evaluated leaves in one theorem: the big-number results of one declaration
-/// are all retained by the kernel and should stay around two gigabytes.
-fn seg_live(b: usize, m: usize) -> usize {
+/// Limits on evaluated leaves per theorem and theorems per segment file.
+fn part_limits(b: usize, m: usize) -> (usize, usize) {
+    // With six eliminated variables and 2^20-bit tables, checking 160 leaves together
+    // improves sharing. Keep 1,920 live leaves per file to preserve Lake parallelism.
+    if (b, m) == (20, 6) {
+        return (160, 12);
+    }
     let per_leaf = leaf_ops(m) as f64 * (1u64 << b) as f64 / 8.0;
-    ((2.0e9 / per_leaf) as usize).clamp(4, 256)
+    (((2.0e9 / per_leaf) as usize).clamp(4, 256), 24)
 }
 
 fn pairs(v: &[(Vec<usize>, Vec<usize>)]) -> String {
     let items: Vec<String> = v.iter().map(|(p, q)| format!("({}, {})", list(p), list(q))).collect();
     format!("[{}]", items.join(",\n   "))
+}
+
+/// Hex literals for RACert.cols: column i has a bit at row p[i] for each group
+/// element p, and a bit at row i for the extra column containing the input itself.
+fn orbit_columns(grp: &BitGroup) -> Vec<String> {
+    let n = grp.perms.len();
+    (0..grp.t).map(|i| {
+        let mut digits = vec![0u8; (grp.t * (n + 1)).div_ceil(4)];
+        let mut set_bit = |bit: usize| digits[bit / 4] |= 1 << (bit % 4);
+        for (g, (perm, _)) in grp.perms.iter().enumerate() {
+            set_bit(perm[i] * (n + 1) + g);
+        }
+        set_bit(i * (n + 1) + n);
+        let mut literal = String::from("0x");
+        for digit in digits.into_iter().rev().skip_while(|&d| d == 0) {
+            literal.push(char::from_digit(digit.into(), 16).unwrap());
+        }
+        literal
+    }).collect()
 }
 
 /// A certified part of the orbit sum: `[lo, hi)` with total orbit size `m` and weighted sum `w`,
@@ -430,9 +450,9 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
         for (ci, slice) in vals.chunks_mut(chunk).enumerate() {
             let (ev, live, tags) = (&ev, &live, &tags);
             sc.spawn(move || {
-                let mut memo = crate::leaf::MemoEval::new(ev, if b >= 22 { 2000 << 20 } else { 600 << 20 });
+                let mut memo = crate::leaf::MemoEval::new(ev, m, tags, if b >= 22 { 2000 << 20 } else { 600 << 20 });
                 for (j, o) in slice.iter_mut().enumerate() {
-                    *o = memo.leaf_elim(live[ci * chunk + j].alpha, m, tags);
+                    *o = memo.leaf_elim(live[ci * chunk + j].alpha);
                 }
             });
         }
@@ -470,15 +490,13 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
     writeln!(d, "theorem flatOK : P.checkFlat {} {} qmFlat = true := by decide +kernel\n", b, m).unwrap();
     writeln!(d, "theorem symsOK : P.checkSyms {} syms perms = true := by decide +kernel\n", bs).unwrap();
     writeln!(d, "theorem grpOK : checkBitGroup {} perms gens inv = true := by decide +kernel\n", t).unwrap();
-    writeln!(d, "end {}", cls_ns).unwrap();
-    write_file(&ctx.path_of(&defs_module), &d);
-    // parts: runs of consecutive orbit minima with a bounded number of evaluated leaves, each
-    // checked by two theorems; several parts per file
+    // Each part checks the weighted sum for a consecutive run of orbit minima.
+    let (live_limit, file_parts) = part_limits(b, m);
     let mut parts_reps: Vec<Vec<&Rep>> = vec![];
     let mut cur: Vec<&Rep> = vec![];
     let mut cur_live = 0;
     for r in &reps {
-        if cur.len() >= PART_REPS || (cur_live >= seg_live(b, m) && r.dead.is_none()) {
+        if cur.len() >= PART_REPS || (cur_live >= live_limit && r.dead.is_none()) {
             parts_reps.push(std::mem::take(&mut cur));
             cur_live = 0;
         }
@@ -492,13 +510,12 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
     }
     let top: u64 = 1 << t;
     let quad_index: std::collections::HashMap<usize, usize> = flat.iter().enumerate().map(|(i, e)| (e.0, i)).collect();
-    // files: consecutive parts, with one check of all their orbit minima (its set-up for a
-    // large group is expensive, so it should not be repeated for every part)
+    // Each file checks the orbit minima of all its parts together.
     let mut files: Vec<Vec<Vec<&Rep>>> = vec![];
     let mut cur_file: Vec<Vec<&Rep>> = vec![];
     let mut cur_reps = 0;
     for part in parts_reps {
-        if !cur_file.is_empty() && (cur_file.len() >= FILE_PARTS || cur_reps + part.len() > FILE_REPS) {
+        if !cur_file.is_empty() && (cur_file.len() >= file_parts || cur_reps + part.len() > FILE_REPS) {
             files.push(std::mem::take(&mut cur_file));
             cur_reps = 0;
         }
@@ -508,6 +525,14 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
     if !cur_file.is_empty() {
         files.push(cur_file);
     }
+    let shared_columns = files.len() > 1;
+    if shared_columns {
+        writeln!(d, "/-- Bit-matrix columns shared by the orbit checks of this class. -/\ndef orbitCols : List ℕ :=\n  {}\n", list(&orbit_columns(&grp))).unwrap();
+        writeln!(d, "theorem colsOK : cols {} perms.length perms = orbitCols := by decide +kernel\n", t).unwrap();
+    }
+    writeln!(d, "end {}", cls_ns).unwrap();
+    write_file(&ctx.path_of(&defs_module), &d);
+
     let mut parts: Vec<(Part, String)> = vec![];
     for (j, file) in files.iter().enumerate() {
         let seg_module = format!("{}.S{}", cls_module, j);
@@ -540,7 +565,12 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
             writeln!(c, "theorem sumOK{} : P.sumEvE {} {} qt ow qmFlat seg{} ev{} 0 {} = true := by decide +kernel\n", i, b, m, i, i, wi).unwrap();
         }
         writeln!(c, "/-- All orbit minima of this file. -/\ndef seg : List (ℕ × ℕ) := {}\n", seg_expr).unwrap();
-        writeln!(c, "theorem segOK : checkSeg {} perms {} {} seg = true := by decide +kernel\n", t, lo, hi).unwrap();
+        let seg_proof = if shared_columns {
+            "checkSeg_of_cols colsOK (by decide +kernel)"
+        } else {
+            "by decide +kernel"
+        };
+        writeln!(c, "theorem segOK : checkSeg {} perms {} {} seg = true := {}\n", t, lo, hi, seg_proof).unwrap();
         writeln!(
             c,
             "theorem total : OrbitSeg {} perms (P.leaf {}) {} {} {} {} :=\n  OrbitSeg.of_checkSum segOK (by decide +kernel)\n    ({})\n    (by decide +kernel)\n",
@@ -637,7 +667,7 @@ pub fn ops(s: usize, n: usize, bmax: usize, per_thm: usize) {
     let grp = BitGroup::new(&p, b + m, &g);
     let tree = crate::tree::Tree::new_elim(&p, b, m);
     let terms: Vec<_> = p.quads.iter().map(|&x| p.quad_terms(x)).collect();
-    let per = if per_thm == 0 { seg_live(b, m) } else { per_thm };
+    let per = if per_thm == 0 { part_limits(b, m).0 } else { per_thm };
     let total: u64 = 1 << grp.t;
     let pieces = 16u64;
     let mut sim = crate::leaf::Sim::new(&terms, b);
