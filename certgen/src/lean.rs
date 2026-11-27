@@ -1,5 +1,8 @@
 //! Emission of the Lean certificate files.
 
+#[path = "split.rs"]
+mod split;
+
 use crate::leaf::all_leaves;
 use crate::problem::Problem;
 use crate::sys::{classes, Sys};
@@ -247,7 +250,11 @@ pub fn generate(s: usize, n: usize, root: &Path, bmax: usize) {
             emit_class_plain(&ctx, &sys, i, rep, bmax)
         } else {
             let hs = centralizer(&g, rep);
-            emit_class_sym(&ctx, &sys, i, rep, &hs, bmax)
+            if (s, n, i) == (6, 0, 0) && bmax >= 20 {
+                split::emit(&ctx, &sys, rep, &hs)
+            } else {
+                emit_class_sym(&ctx, &sys, i, rep, &hs, bmax)
+            }
         };
         counts.push(total);
     }
@@ -475,16 +482,7 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
     let mut d = file_prelude(&["Solution.Cert.SymOrbit".to_string(), "Solution.Cert.Elim".to_string()], &doc);
     writeln!(d, "namespace {}\n\nopen RACert RACert.Problem\n", cls_ns).unwrap();
     d.push_str(&problem_def(&p));
-    let syms: Vec<String> = grp.syms.iter().map(|x| format!("{{ h := {}, hi := {}, vp := {}, vq := {} }}", list(&x.h), list(&x.hi), list(&x.vp), list(&x.vq))).collect();
-    writeln!(d, "/-- Symmetries of the problem, one for each element of `perms`. -/\ndef syms : List Sym :=\n  [{}]\n", syms.join(",\n   ")).unwrap();
-    writeln!(d, "/-- The group of permutations of the high variables induced by the symmetries. -/\ndef perms : List (List ℕ × List ℕ) :=\n  {}\n", pairs(&grp.perms)).unwrap();
-    let gens: Vec<String> = grp.gens().iter().map(|(g, r)| format!("({}, {})", g, list(r))).collect();
-    writeln!(d, "/-- Generators of `perms` with their rows of the multiplication table. -/\ndef gens : List (ℕ × List ℕ) :=\n  [{}]\n", gens.join(",\n   ")).unwrap();
-    writeln!(d, "/-- Inverses in `perms`. -/\ndef inv : List ℕ := {}\n", list(&grp.inv)).unwrap();
-    writeln!(d, "/-- The quadruples not depending on the eliminated variables, as a tree with their classified\nsides and the masks of the high variables of the subtrees. -/\ndef qt : QTree :=\n  {}\n", qt.lean()).unwrap();
-    let ow_s: Vec<String> = ow.iter().map(|t| t.lean()).collect();
-    writeln!(d, "/-- For each eliminated variable, the quadruples depending on it. -/\ndef ow : List QTree :=\n  [{}]\n", ow_s.join(",\n   ")).unwrap();
-    writeln!(d, "theorem elimOK : P.checkElim {} {} qt ow = true := by decide +kernel\n", b, m).unwrap();
+    group_and_trees(&mut d, &grp, b, m, &qt, &ow);
     let flat_s: Vec<String> = flat.iter().map(|(x, m1, m2)| format!("({}, {}, {})", x, m1, m2)).collect();
     writeln!(d, "/-- The quadruples of `qt`; dead leaves refer to them by index. -/\ndef qmFlat : List (ℕ × ℕ × ℕ) :=\n  [{}]\n", flat_s.join(", ")).unwrap();
     writeln!(d, "theorem flatOK : P.checkFlat {} {} qmFlat = true := by decide +kernel\n", b, m).unwrap();
@@ -581,23 +579,7 @@ fn emit_class_sym(ctx: &Ctx, sys: &Sys, i: usize, rep: &[usize], hs: &[Vec<usize
         write_file(&ctx.path_of(&seg_module), &c);
         parts.push((Part { lo, hi, m: om, w, name: format!("{}.total", seg_ns) }, seg_module));
     }
-    let mut body = String::new();
-    let (part, imports) = emit_parts(ctx, &cls_ns, &defs_module, &cls_module, &bs, t, parts, &mut body, "total");
-    assert_eq!(part.m, top as u128, "orbit sizes do not add up");
-    assert_eq!(part.w, total);
-    writeln!(
-        body,
-        "/-- The number of lawful cycle sets invariant under the symmetry of this class. -/\ntheorem count : fixCountL {} {} {} = {} :=\n  fixCountL_of_orbits (P := P) check rows (by decide +kernel) (by decide +kernel) (by decide +kernel)\n    symsOK grpOK total\n",
-        s, n, list(rep), total
-    )
-    .unwrap();
-    let mut imps = vec![defs_module.clone()];
-    imps.extend(imports);
-    let mut content = file_prelude(&imps, &doc);
-    writeln!(content, "namespace {}\n\nopen RACert RACert.Problem\n", cls_ns).unwrap();
-    content.push_str(&body);
-    writeln!(content, "end {}", cls_ns).unwrap();
-    write_file(&ctx.path_of(&cls_module), &content);
+    finish_class(ctx, &p, &cls_ns, &defs_module, &cls_module, &bs, t, parts, total, &doc);
     total
 }
 
@@ -698,4 +680,38 @@ pub fn ops(s: usize, n: usize, bmax: usize, per_thm: usize) {
         "({},{}) b {} eliminated {} t {}: {} leaves per theorem; per leaf {:.0} big operations (residuals {:.0}, xor {:.0}, tree {:.0}, weights {:.0}, population counts {:.0}) and {:.0} evaluated nodes (sampled {} leaves, {} minima)",
         s, n, b, m, grp.t, per, f(tot), f(sim.cat[0]), f(sim.cat[1]), f(sim.cat[2]), f(sim.cat[3]), f(sim.cat[4]), f(sim.visits), leaves, minima
     );
+}
+
+fn group_and_trees(d: &mut String, grp: &BitGroup, b: usize, m: usize, qt: &QTree, ow: &[QTree]) {
+    let syms: Vec<String> = grp.syms.iter().map(|x| format!("{{ h := {}, hi := {}, vp := {}, vq := {} }}", list(&x.h), list(&x.hi), list(&x.vp), list(&x.vq))).collect();
+    writeln!(d, "/-- Symmetries of the problem, one for each element of `perms`. -/\ndef syms : List Sym :=\n  [{}]\n", syms.join(",\n   ")).unwrap();
+    writeln!(d, "/-- The group of permutations of the high variables induced by the symmetries. -/\ndef perms : List (List ℕ × List ℕ) :=\n  {}\n", pairs(&grp.perms)).unwrap();
+    let gens: Vec<String> = grp.gens().iter().map(|(g, r)| format!("({}, {})", g, list(r))).collect();
+    writeln!(d, "/-- Generators of `perms` with their rows of the multiplication table. -/\ndef gens : List (ℕ × List ℕ) :=\n  [{}]\n", gens.join(",\n   ")).unwrap();
+    writeln!(d, "/-- Inverses in `perms`. -/\ndef inv : List ℕ := {}\n", list(&grp.inv)).unwrap();
+    writeln!(d, "/-- The quadruples not depending on the eliminated variables, as a tree with their classified\nsides and the masks of the high variables of the subtrees. -/\ndef qt : QTree :=\n  {}\n", qt.lean()).unwrap();
+    let ow_s: Vec<String> = ow.iter().map(|t| t.lean()).collect();
+    writeln!(d, "/-- For each eliminated variable, the quadruples depending on it. -/\ndef ow : List QTree :=\n  [{}]\n", ow_s.join(",\n   ")).unwrap();
+    writeln!(d, "theorem elimOK : P.checkElim {} {} qt ow = true := by decide +kernel\n", b, m).unwrap();
+}
+
+fn finish_class(ctx: &Ctx, p: &Problem, cls_ns: &str, defs_module: &str, cls_module: &str,
+                bs: &str, t: usize, parts: Vec<(Part, String)>, total: u128, doc: &str) {
+    let mut body = String::new();
+    let (part, imports) = emit_parts(ctx, cls_ns, defs_module, cls_module, bs, t, parts, &mut body, "total");
+    assert_eq!(part.m, 1u128 << t, "orbit sizes do not add up");
+    assert_eq!(part.w, total);
+    writeln!(
+        body,
+        "/-- The number of lawful cycle sets invariant under the symmetry of this class. -/\ntheorem count : fixCountL {} {} {} = {} :=\n  fixCountL_of_orbits (P := P) check rows (by decide +kernel) (by decide +kernel) (by decide +kernel)\n    symsOK grpOK total\n",
+        p.s, p.n, list(&p.perm), total
+    )
+    .unwrap();
+    let mut imps = vec![defs_module.to_owned()];
+    imps.extend(imports);
+    let mut content = file_prelude(&imps, doc);
+    writeln!(content, "namespace {}\n\nopen RACert RACert.Problem\n", cls_ns).unwrap();
+    content.push_str(&body);
+    writeln!(content, "end {}", cls_ns).unwrap();
+    write_file(&ctx.path_of(cls_module), &content);
 }

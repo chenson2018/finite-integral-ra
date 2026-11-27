@@ -20,7 +20,7 @@ in `Solution/Atoms<k>/Symm<s>Nsymm<n>.lean` imports `Solution.Atoms<k>.S<s>N<n>.
 ## What is proved, and how
 
 The Lean development (`Solution/Theory`, `Solution/Cert`) reduces
-`Nat.card (ofSymmNsymm s n) = N` to kernel computations in four steps.
+`Nat.card (ofSymmNsymm s n) = N` to kernel computations as follows.
 
 1. **Classification** (`Solution/Theory`). Every finite integral relation algebra with `s`
    symmetric and `2n` nonsymmetric diversity atoms is the complex algebra of a *lawful cycle set*
@@ -73,10 +73,9 @@ The Lean development (`Solution/Theory`, `Solution/Cert`) reduces
    (`Solution/Cert/WPop.lean`). `checkElim` validates the classification of the conditions; a
    condition whose two sides are the same pair of rows holds trivially and is dropped.
 
-7. **Sharing between leaves** (`Solution/Cert/Elim.lean`, `Side.lean`). Each part has a theorem
-   (`sumEvE`) checking its weighted sum. For the identity class of (6,0), a theorem checks up
-   to 160 evaluated leaves and each file holds up to 12 such parts. The evaluator lets the
-   kernel cache each distinct table within a declaration:
+7. **Sharing between leaves** (`Solution/Cert/Elim.lean`, `Side.lean`). The one-stage orbit
+   certificates use `sumEvE` to check a weighted sum of leaves in each theorem. The evaluator
+   lets the kernel cache each distinct table within a declaration:
    * each side of a condition is pre-classified (`Side`: terms guarded by high variables, and
      terms independent of them), so that evaluating it takes a few reduction steps;
    * the conditions form a binary tree (`QTree`), and every subtree is evaluated as a function of
@@ -86,8 +85,29 @@ The Lean development (`Solution/Theory`, `Solution/Cert`) reduces
      as arguments of a big-number operation, where the result is cached under the expression;
      a table that is merely passed along is never recomputed.
 
-Every computational step is a `decide +kernel` proof of a closed Boolean or numeric equation, so
-the only axioms are `propext`, `Quot.sound` and `Classical.choice`.
+8. **Hypergraph split** (`Solution/Cert/Split.lean`). In the identity class of (6,0), the 20
+   triples of distinct diversity atoms form a 3-uniform hypergraph. The previous split fixed
+   the 30 triples `aab` with `a ≠ b` first. Every such assignment extends to a model by
+   including all distinct triples and all loops `aaa`, so no outer case could be pruned.
+   Fixing the hypergraph first, up to atom permutation, gives 2,136 outer cases. If a set of four atoms
+   contains no hyperedge, its three pairings can only have witnesses outside the set. If one pairing
+   has a witness and another has none, every completion violates associativity. Already
+   927 outer cases have such a contradiction. The other 1,209 hypergraphs each admit a
+   completion with every repeated-atom triple present.
+
+   Within each representative, fix the ten triples `aab` with repeated atom 5 or 6 and
+   `b ≠ a`. Each side of an associativity equation is a disjunction of positive products.
+   Setting the unknown bits to zero and to one bounds that side for every completion.
+   The checker tests the supplied quadruples across all 1,024 middle assignments in parallel.
+   It discards a branch when one side is definitely true and the other is definitely false.
+   The surviving 182,563 branches use tables of `2^20` bits with six independent loop
+   variables, in batches of up to 96 evaluated leaves per theorem. The previous split
+   evaluated 1,540,944 branches of the same width. The class now occupies 147 segment files,
+   down from 803. Only the outer cases carry orbit weights. Every middle assignment in a
+   representative contributes once, even when the hypergraph has automorphisms.
+
+The kernel checks the closed Boolean and numeric equations, including the pruning masks and
+weighted sums. The final theorems use only `propext`, `Quot.sound` and `Classical.choice`.
 
 ## Design notes for kernel reduction
 
@@ -116,37 +136,49 @@ the only axioms are `propext`, `Quot.sound` and `Classical.choice`.
 
 ## Status
 
-Checking times are wall-clock for `lake build Solution` on a 12-thread laptop CPU, from a state
-where `Solution/Theory` and `Solution/Cert` are built.
-The timings below were recorded before the switch to 160-leaf theorems and shared permutation
-columns. That build took 97 minutes (18 CPU-hours).
+Wall-clock times below are from one fresh run per type on a 6-core, 12-thread AMD Ryzen AI 5
+PRO 340 with 86 GiB RAM and Lean 4.37.0-rc1. Types ran sequentially, and Lake checked modules within
+each type in parallel. Both timing columns include process startup and cover all conjugacy classes.
 
-| type `(s, n)` | atoms | count | certificate | check |
-|---|---|---|---|---|
-| (0,0) (1,0) (0,1) (2,0) | 1–3 | 1, 2, 3, 7 | one leaf per class | seconds |
-| (1,1) (3,0) | 4 | 37, 65 | one leaf per class | seconds |
-| (0,2) (2,1) (4,0) | 5 | 83, 1316, 3013 | one leaf per class | seconds |
-| (1,2) (3,1) (5,0) | 6 | 47965, 988464, 3849920 | 6, 26, 29 leaves with 1, 3, 5 eliminated variables | seconds |
-| (0,3) | 7 | 4492953 | 24432 orbit minima, 5571 leaves | about half a minute |
-| (2,2) | 7 | 2186435732 | 277824 orbit minima, 65947 leaves, 2 eliminated variables | about 4 minutes |
-| (4,1) | 7 | 50265788140 | 1446336 orbit minima, 218422 leaves, 4 eliminated variables | about 15 minutes |
-| (6,0) | 7 | 292352449486 | 1540944 orbit minima, all evaluated, 6 eliminated variables | about 80 minutes |
+* **Lean check** times `lake --no-cache build +Solution.Atoms<k>.Symm<s>Nsymm<n>` on the freshly
+  generated sources. The project started with an empty build directory. External dependencies
+  were cached, and the shared theory and checker were built once before timing the types.
+* **certgen** times one release-mode `certgen gen <s> <n> <repo-root>` with the default
+  `bmax = 22`, including writing the files. Building the release binary took 1.6 s
+  before timing the types. Every generated directory matched the repository byte-for-byte.
 
-On the same laptop, a later benchmark built the six `Solution.Atoms{k}.Total` targets together
-with fresh project artifacts and cached dependencies. Median time was 26.7 s before these
-changes and 25.1 s afterward. Release-mode certificate generation through six atoms took 0.58 s
-and 0.35 s respectively and produced identical files. For the seven-atom (6,0) identity class,
-12 concurrent segment builds (S30, S96, …, S756) with shared definitions already built averaged
-55.7 s with the original certificates, 48.9 s with larger theorems, and 47.4 s with both larger
-theorems and shared columns. Each segment configuration was timed twice.
+| Type `(s, n)` | Atoms | Isomorphism classes | Identity-class certificate | Lean check | `certgen` |
+|---|---:|---:|---|---:|---:|
+| (0,0) | 1 | 1 | 1 leaf | 1.8 s | 0.8 ms |
+| (1,0) | 2 | 2 | 1 leaf | 1.8 s | 0.6 ms |
+| (0,1) | 3 | 3 | 1 leaf | 1.9 s | 0.6 ms |
+| (2,0) | 3 | 7 | 1 leaf | 1.8 s | 1.0 ms |
+| (1,1) | 4 | 37 | 1 leaf | 1.9 s | 0.7 ms |
+| (3,0) | 4 | 65 | 1 leaf | 1.9 s | 1.5 ms |
+| (0,2) | 5 | 83 | 1 leaf | 2.2 s | 2.4 ms |
+| (2,1) | 5 | 1,316 | 1 leaf | 2.2 s | 2.5 ms |
+| (4,0) | 5 | 3,013 | 1 leaf | 2.4 s | 12 ms |
+| (1,2) | 6 | 47,965 | 6 orbit minima, 6 evaluated leaves, 1 eliminated variable | 4.3 s | 90 ms |
+| (3,1) | 6 | 988,464 | 26 orbit minima, 26 evaluated leaves, 3 eliminated variables | 5.0 s | 151 ms |
+| (5,0) | 6 | 3,849,920 | 34 orbit minima, 29 evaluated leaves, 5 eliminated variables | 10.0 s | 79 ms |
+| (0,3) | 7 | 4,492,953 | 24,432 orbit minima, 5,571 evaluated leaves | 36.0 s | 1.1 s |
+| (2,2) | 7 | 2,186,435,732 | 277,824 orbit minima, 65,947 evaluated leaves, 2 eliminated variables | 3 min 02 s | 35.3 s |
+| (4,1) | 7 | 50,265,788,140 | 1,446,336 orbit minima, 218,422 evaluated leaves, 4 eliminated variables | 13 min 24 s | 54.7 s |
+| (6,0) | 7 | 292,352,449,486 | 2,136 hypergraph orbits, 182,563 inner leaves, 6 eliminated variables | 6 min 28 s | 1 min 01 s |
+| **All types** | | | | **24 min 07 s** | **2 min 33 s** |
 
-This gives the totals for up to 7 atoms (`card_ofAtoms_seven`: 344809166311). Not covered:
-`(1,3)`, a type with 8 atoms. Its identity class has 63 variables, only
+The totals use unrounded per-type measurements. Building the shared Lean modules took
+10.6 s. Checking the atom totals and the top-level `Solution` target took another
+2.3 s, bringing the staged Lean build to **24 min 20 s**.
+
+The four seven-atom types sum to 344,809,166,311 isomorphism classes (`card_ofAtoms_seven`).
+The eight-atom type `(1,3)` has 63 variables in its identity class, only
 one of which can be eliminated; with tables of `2^20` bits this leaves 42 high variables, i.e.
 about `10^11` orbits of assignments under its 48 symmetries, of which about `6 * 10^9` need a
 truth table (`certgen plan 1 3 19 22`): some 26000 CPU-hours of kernel time and a certificate of
 terabytes. This type needs a further idea.
 
 `certgen plan <s> <n> <bmin> <bmax>` estimates the certificate size and the single-thread
-kernel time of the identity class for the possible choices of low variables, and
-`certgen ops <s> <n> <bmax> [leaves per theorem]` simulates the sharing of big-number operations.
+kernel time of the one-stage orbit method for different choices of low variables in the identity
+class. `certgen ops <s> <n> <bmax> [leaves per theorem]` simulates the sharing of big-number
+operations in that method.
