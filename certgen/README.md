@@ -85,28 +85,35 @@ The Lean development (`Solution/Theory`, `Solution/Cert`) reduces
      as arguments of a big-number operation, where the result is cached under the expression;
      a table that is merely passed along is never recomputed.
 
-8. **Hypergraph split** (`Solution/Cert/Split.lean`). In the identity class of (6,0), the 20
-   triples of distinct diversity atoms form a 3-uniform hypergraph. The previous split fixed
-   the 30 triples `aab` with `a ≠ b` first. Every such assignment extends to a model by
-   including all distinct triples and all loops `aaa`, so no outer case could be pruned.
-   Fixing the hypergraph first, up to atom permutation, gives 2,136 outer cases. If a set of four atoms
-   contains no hyperedge, its three pairings can only have witnesses outside the set. If one pairing
-   has a witness and another has none, every completion violates associativity. Already
-   927 outer cases have such a contradiction. The other 1,209 hypergraphs each admit a
-   completion with every repeated-atom triple present.
+8. **Product rows and symmetry** (`Solution/Cert/Split.lean`, `Row.lean`). In the identity
+   class of (6,0), fix the 20 triples on three distinct diversity atoms up to permutation.
+   These give 2,136 hypergraph orbits. In (4,1), use the 16 cycles on three distinct
+   converse-orbits, retaining their orientations. These give 1,740 outer orbits. Within
+   each representative, ten further cycles specify part of two product rows. The checker
+   treats all 1,024 assignments to those cycles in parallel. Each side of an associativity
+   equation is a disjunction of positive products, so setting unknown cycles to zero and
+   one gives lower and upper bounds. A true lower bound opposite a false upper bound
+   rules out the row. Two quadruples can also rule out a row together if they exclude the
+   two possible values of the same cycle.
 
-   Within each representative, fix the ten triples `aab` with repeated atom 5 or 6 and
-   `b ≠ a`. Each side of an associativity equation is a disjunction of positive products.
-   Setting the unknown bits to zero and to one bounds that side for every completion.
-   The checker tests the supplied quadruples across all 1,024 middle assignments in parallel.
-   It discards a branch when one side is definitely true and the other is definitely false.
-   The surviving 182,563 branches use tables of `2^20` bits with six independent loop
-   variables, in batches of up to 96 evaluated leaves per theorem. The previous split
-   evaluated 1,540,944 branches of the same width. The class now occupies 147 segment files,
-   down from 803. Only the outer cases carry orbit weights. Every middle assignment in a
-   representative contributes once, even when the hypergraph has automorphisms.
+   An atom permutation fixing the outer assignment can pair surviving row assignments of
+   equal count. The checker verifies the involution on the ten row bits and counts one
+   representative per pair with weight two. Fixed rows have weight one.
 
-The kernel checks the closed Boolean and numeric equations, including the pruning masks and
+9. **Forced cycles and independent components** (`Solution/Cert/Contract.lean`,
+   `Factors.lean`). For a whole outer case, or after fixing four of the ten row bits,
+   a quadruple can force a cycle to a constant or force two cycles to agree. Lean checks
+   that each unequal valuation contradicts the named quadruple. It then verifies that the
+   remaining coordinates encode the models bijectively. Dropping false and dominated
+   products can make an equation tautological or restrict it to a single component. Lean
+   checks the separation and multiplies the component counts. A block of `f` unconstrained
+   cycles contributes `2^f`. For example, one (4,1) branch starts with 30 cycles. After
+   13 identifications its equations separate into blocks of 15 and 2 cycles. Their counts
+   give `2,290 × 3 = 6,870` completions. See [the generated proof](../Solution/Atoms7/S4N1/C0/S0.lean).
+   For branches that still have a large connected component, the generator
+   uses the row masks, symmetry weights when available, and the packed tables of step 6.
+
+The kernel checks the closed Boolean and numeric equations, including the pruning masks, component products and
 weighted sums. The final theorems use only `propext`, `Quot.sound` and `Classical.choice`.
 
 ## Design notes for kernel reduction
@@ -144,8 +151,7 @@ each type in parallel. Both timing columns include process startup and cover all
   generated sources. The project started with an empty build directory. External dependencies
   were cached, and the shared theory and checker were built once before timing the types.
 * **certgen** times one release-mode `certgen gen <s> <n> <repo-root>` with the default
-  `bmax = 22`, including writing the files. Building the release binary took 1.6 s
-  before timing the types. Every generated directory matched the repository byte-for-byte.
+  `bmax = 22`, including writing the files. Compiling the release binary is outside the timing.
 
 | Type `(s, n)` | Atoms | Isomorphism classes | Identity-class certificate | Lean check | `certgen` |
 |---|---:|---:|---|---:|---:|
@@ -163,20 +169,24 @@ each type in parallel. Both timing columns include process startup and cover all
 | (5,0) | 6 | 3,849,920 | 34 orbit minima, 29 evaluated leaves, 5 eliminated variables | 10.0 s | 79 ms |
 | (0,3) | 7 | 4,492,953 | 24,432 orbit minima, 5,571 evaluated leaves | 36.0 s | 1.1 s |
 | (2,2) | 7 | 2,186,435,732 | 277,824 orbit minima, 65,947 evaluated leaves, 2 eliminated variables | 3 min 02 s | 35.3 s |
-| (4,1) | 7 | 50,265,788,140 | 1,446,336 orbit minima, 218,422 evaluated leaves, 4 eliminated variables | 13 min 24 s | 54.7 s |
-| (6,0) | 7 | 292,352,449,486 | 2,136 hypergraph orbits, 182,563 inner leaves, 6 eliminated variables | 6 min 28 s | 1 min 01 s |
-| **All types** | | | | **24 min 07 s** | **2 min 33 s** |
+| (4,1) | 7 | 50,265,788,140 | 1,740 outer orbits, 140,708 standard leaves, 57 contracted tables, 411 component products | 5 min 56 s | 38.1 s |
+| (6,0) | 7 | 292,352,449,486 | 2,136 outer orbits, 137,078 standard leaves, 32 contracted tables, 382 component products | 7 min 01 s | 45.4 s |
+| **All types** | | | | **17 min 12 s** | **2 min 00 s** |
 
-The totals use unrounded per-type measurements. Building the shared Lean modules took
-10.6 s. Checking the atom totals and the top-level `Solution` target took another
-2.3 s, bringing the staged Lean build to **24 min 20 s**.
+The totals sum the unrounded per-type times and exclude building the shared modules and the
+top-level target. The two product-row types were timed again after introducing the new
+checker. Each standard leaf in these rows uses a `2^20`-bit table with the independent
+symmetric loops eliminated. An additional 190 branches of (4,1) and 19 of (6,0) close by
+contradiction during contraction.
 
 The four seven-atom types sum to 344,809,166,311 isomorphism classes (`card_ofAtoms_seven`).
 The eight-atom type `(1,3)` has 63 variables in its identity class, only
 one of which can be eliminated; with tables of `2^20` bits this leaves 42 high variables, i.e.
 about `10^11` orbits of assignments under its 48 symmetries, of which about `6 * 10^9` need a
 truth table (`certgen plan 1 3 19 22`): some 26000 CPU-hours of kernel time and a certificate of
-terabytes. This type needs a further idea.
+terabytes. These estimates describe the one-stage method. The row decomposition above has been checked
+for the two seven-atom milestones. The component widths and number of surviving rows at eight
+atoms have yet to be measured.
 
 `certgen plan <s> <n> <bmin> <bmax>` estimates the certificate size and the single-thread
 kernel time of the one-stage orbit method for different choices of low variables in the identity

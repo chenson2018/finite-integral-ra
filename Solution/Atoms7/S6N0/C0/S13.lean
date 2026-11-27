@@ -6,9 +6,9 @@ Authors: Chris Henson
 
 module
 
-public import Solution.Atoms7.S6N0.C0.Defs
+public import Solution.Atoms7.S6N0.C0.Actions
 
-/-! Generated certificate for the identity on six symmetric diversity atoms. -/
+/-! Generated identity-class certificate for the product-row count. -/
 
 set_option linter.style.longLine false
 set_option maxRecDepth 100000
@@ -199,13 +199,17 @@ theorem h7423 : P.leaf 36 7423 = 0 :=
 theorem cover7571 : P.CoversSplit 26 10 7571 0x8000000000000000000000000000000000000000000000000000000000000001000000000000000000000400000000000000000000000000000000000000000100000000000000000000000000000000000000000020000000000000000000010000000000000000000000000000000000000000000000000000000000000000 :=
   coversSplit check rows (by decide) (by decide) (xs := [433, 481, 489, 530, 538, 629, 636, 922, 930]) (by decide +kernel)
 
-theorem c7571_0 : P.sumLeaves 26 7752704 1024 = 516852 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 7571) (lo := 0) (len := 1024) (W := 516852) check rows elimOK (by decide) (by decide) cover7571 (by decide)
+noncomputable def f7571 (i : ℕ) := rowWeight keep0 twice0 i * P.leaf 26 (7752704 + i)
+
+theorem c7571_0 : rowSum f7571 0 1024 = 516852 := by
+  apply weightedChunk_eq (b := 20) (m := 6) (d := 10) (H := 7571) (keep := keep0) (twice := twice0) check rows elimOK (by decide) (by decide) cover7571 (by decide)
   decide +kernel
 
+theorem sum7571 : rowSum f7571 0 1024 = 516852 :=
+  c7571_0
+
 theorem h7571 : P.leaf 36 7571 = 516852 :=
-  (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(1024, 516852)]) (.cons c7571_0 (.nil)) (by decide) (by decide))
+  leaf_weighted (k := 26) (d := 10) (H := 7571) (keep := keep0) (twice := twice0) rows (by decide) (by decide) bal0 (invRow0 (H := 7571) (by decide) (by decide +kernel)) sum7571
 
 theorem cover7572 : P.CoversSplit 26 10 7572 0 :=
   coversSplit check rows (by decide) (by decide) (xs := [537]) (by decide +kernel)

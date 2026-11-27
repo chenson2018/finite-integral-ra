@@ -6,9 +6,9 @@ Authors: Chris Henson
 
 module
 
-public import Solution.Atoms7.S6N0.C0.Defs
+public import Solution.Atoms7.S6N0.C0.Actions
 
-/-! Generated certificate for the identity on six symmetric diversity atoms. -/
+/-! Generated identity-class certificate for the product-row count. -/
 
 set_option linter.style.longLine false
 set_option maxRecDepth 100000
@@ -207,16 +207,8 @@ theorem h3400 : P.leaf 36 3400 = 1555 :=
   (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
     (sumLeaves_of_chunks (cs := [(1024, 1555)]) (.cons c3400_0 (.nil)) (by decide) (by decide))
 
-theorem cover3401 : P.CoversSplit 26 10 3401 0x8000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000050000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [481, 482, 530, 579, 629, 636, 930, 972, 979, 1322, 1665]) (by decide +kernel)
-
-theorem c3401_0 : P.sumLeaves 26 3482624 1024 = 1024 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 3401) (lo := 0) (len := 1024) (W := 1024) check rows elimOK (by decide) (by decide) cover3401 (by decide)
-  decide +kernel
-
-theorem h3401 : P.leaf 36 3401 = 1024 :=
-  (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(1024, 1024)]) (.cons c3401_0 (.nil)) (by decide) (by decide))
+theorem h3401 : P.leaf 36 3401 = 1024 := by
+  exact leaf_contract_factors (k := 36) (b := 10) (H := 3401) (ss := [(37, 1, 482), (5, 1, 488), (20, 1, 580), (13, 1, 867), (12, 1, 825), (36, 1, 874), (6, 1, 433), (28, 1, 481), (30, 1, 481), (2, 1, 411), (3, 1, 418), (32, 1, 530), (9, 1, 572), (15, 1, 473), (19, 1, 522), (34, 1, 579), (4, 1, 425), (29, 1, 636), (18, 1, 879), (21, 1, 916), (31, 1, 979), (17, 1, 1217), (33, 1, 1322), (35, 1, 1665), (11, 1, 818), (16, 1, 1210)]) (ids := [5, 6, 8, 12, 20, 21, 22, 23, 24, 25]) (cs := [1, 1, 1, 1, 1, 2, 3, 1, 4, 1, 1, 1, 5, 1, 1, 1, 1, 1, 1, 1, 6, 7, 8, 9, 10, 11, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]) (bs := [0, 10]) (W := 1024) check rows (by decide) (by decide +kernel) (by decide +kernel) (by decide) (by decide +kernel)
 
 theorem cover3402 : P.CoversSplit 26 10 3402 0 :=
   coversSplit check rows (by decide) (by decide) (xs := [529]) (by decide +kernel)

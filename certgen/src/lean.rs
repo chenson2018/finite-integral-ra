@@ -250,7 +250,7 @@ pub fn generate(s: usize, n: usize, root: &Path, bmax: usize) {
             emit_class_plain(&ctx, &sys, i, rep, bmax)
         } else {
             let hs = centralizer(&g, rep);
-            if (s, n, i) == (6, 0, 0) && bmax >= 20 {
+            if matches!((s, n, i), (6, 0, 0) | (4, 1, 0)) && bmax >= 20 {
                 split::emit(&ctx, &sys, rep, &hs)
             } else {
                 emit_class_sym(&ctx, &sys, i, rep, &hs, bmax)

@@ -32,7 +32,7 @@ namespace Problem
 def unionBits (f : ℕ → ℕ) (l : List ℕ) : ℕ :=
   l.foldr (fun i acc => Nat.lor (f i) acc) 0
 
-private theorem unionBits_bit (f : ℕ → ℕ) (l : List ℕ) (i : ℕ) :
+theorem unionBits_bit (f : ℕ → ℕ) (l : List ℕ) (i : ℕ) :
     (unionBits f l).testBit i = l.any fun j => (f j).testBit i := by
   induction l with
   | nil => simp [unionBits]
@@ -48,7 +48,7 @@ def boundCol (k d H : ℕ) (z : Bool) : ℕ → ℕ
     else if j - k < d then pat d (j - k)
     else if H.testBit (j - k - d) then ones d else 0
 
-private theorem boundCol_bit {k d H i : ℕ} (hi : i < 2 ^ d) (z : Bool) (c : ℕ) :
+theorem boundCol_bit {k d H i : ℕ} (hi : i < 2 ^ d) (z : Bool) (c : ℕ) :
     (boundCol k d H z c).testBit i =
       litB (join k (i + 2 ^ d * H) (fun _ => z)) c := by
   have hon : (ones d).testBit i = true := by simp [testBit_ones, hi]
@@ -123,7 +123,7 @@ private theorem impossible_of_model {P : Problem} (hc : P.check = true) {k d H i
 noncomputable def splitMask (P : Problem) (k d H : ℕ) (xs : List ℕ) : ℕ :=
   Nat.xor (ones d) (unionBits (impossible P k d H) xs)
 
-private theorem inner_lt {P : Problem} {k d H i : ℕ} (hk : k + d ≤ P.V)
+theorem inner_lt {P : Problem} {k d H i : ℕ} (hk : k + d ≤ P.V)
     (hH : H < 2 ^ (P.V - (k + d))) (hi : i < 2 ^ d) : i + 2 ^ d * H < 2 ^ (P.V - k) := by
   rw [show P.V - k = d + (P.V - (k + d)) by omega, pow_add]
   calc

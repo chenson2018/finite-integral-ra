@@ -10,9 +10,11 @@
 //! assignment `alpha` of the high variables, the number of assignments of the low `b` variables
 //! satisfying the formula, which the Lean kernel recomputes with truth tables on big naturals.
 
+mod contract;
 mod leaf;
 mod lean;
 mod problem;
+mod row;
 mod symm;
 mod sys;
 mod tree;

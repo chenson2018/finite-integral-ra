@@ -6,9 +6,9 @@ Authors: Chris Henson
 
 module
 
-public import Solution.Atoms7.S6N0.C0.Defs
+public import Solution.Atoms7.S6N0.C0.Actions
 
-/-! Generated certificate for the identity on six symmetric diversity atoms. -/
+/-! Generated identity-class certificate for the product-row count. -/
 
 set_option linter.style.longLine false
 set_option maxRecDepth 100000
@@ -240,27 +240,11 @@ theorem h11603 : P.leaf 36 11603 = 0 :=
   (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
     (sumLeaves_of_chunks (cs := [(1024, 0)]) (.cons c11603_0 (.nil)) (by decide) (by decide))
 
-theorem cover11604 : P.CoversSplit 26 10 11604 0x8000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [482, 489, 510, 629, 636, 881, 930, 972, 1315, 1658]) (by decide +kernel)
+theorem h11604 : P.leaf 36 11604 = 256 := by
+  exact leaf_contract_factors (k := 36) (b := 8) (H := 11604) (ss := [(2, 1, 468), (3, 1, 418), (4, 1, 410), (5, 1, 418), (36, 1, 482), (6, 1, 433), (31, 1, 486), (13, 1, 488), (20, 1, 523), (17, 1, 529), (37, 1, 531), (29, 1, 489), (7, 1, 461), (28, 1, 629), (8, 1, 516), (9, 1, 572), (10, 1, 811), (11, 1, 818), (12, 1, 825), (21, 1, 867), (18, 1, 879), (14, 1, 860), (33, 1, 881), (15, 1, 916), (35, 1, 930), (30, 1, 972), (32, 1, 1315), (34, 1, 1658)]) (ids := [14, 17, 20, 21, 22, 23, 24, 25]) (cs := [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 3, 1, 1, 4, 5, 6, 7, 8, 9, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]) (bs := [0, 8]) (W := 256) check rows (by decide) (by decide +kernel) (by decide +kernel) (by decide) (by decide +kernel)
 
-theorem c11604_0 : P.sumLeaves 26 11882496 1024 = 256 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 11604) (lo := 0) (len := 1024) (W := 256) check rows elimOK (by decide) (by decide) cover11604 (by decide)
-  decide +kernel
-
-theorem h11604 : P.leaf 36 11604 = 256 :=
-  (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(1024, 256)]) (.cons c11604_0 (.nil)) (by decide) (by decide))
-
-theorem cover11605 : P.CoversSplit 26 10 11605 0x8000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [482, 489, 559, 629, 636, 881, 930, 972, 1315, 1658]) (by decide +kernel)
-
-theorem c11605_0 : P.sumLeaves 26 11883520 1024 = 2048 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 11605) (lo := 0) (len := 1024) (W := 2048) check rows elimOK (by decide) (by decide) cover11605 (by decide)
-  decide +kernel
-
-theorem h11605 : P.leaf 36 11605 = 2048 :=
-  (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(1024, 2048)]) (.cons c11605_0 (.nil)) (by decide) (by decide))
+theorem h11605 : P.leaf 36 11605 = 2048 := by
+  exact leaf_contract_factors (k := 36) (b := 11) (H := 11605) (ss := [(2, 1, 475), (4, 1, 425), (5, 1, 425), (36, 1, 482), (6, 1, 433), (31, 1, 487), (13, 1, 488), (17, 1, 529), (37, 1, 531), (29, 1, 489), (7, 1, 461), (20, 1, 580), (28, 1, 629), (9, 1, 572), (10, 1, 811), (11, 1, 818), (12, 1, 825), (18, 1, 879), (33, 1, 881), (35, 1, 930), (30, 1, 972), (32, 1, 1315), (21, 1, 1609), (15, 1, 916), (34, 1, 1658)]) (ids := [1, 6, 12, 14, 17, 20, 21, 22, 23, 24, 25]) (cs := [1, 2, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 4, 1, 5, 1, 1, 6, 1, 1, 7, 8, 9, 10, 11, 12, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]) (bs := [0, 11]) (W := 2048) check rows (by decide) (by decide +kernel) (by decide +kernel) (by decide) (by decide +kernel)
 
 theorem cover11607 : P.CoversSplit 26 10 11607 0x8000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 :=
   coversSplit check rows (by decide) (by decide) (xs := [482, 489, 629, 636, 881, 930, 972, 1265, 1273, 1315, 1658]) (by decide +kernel)

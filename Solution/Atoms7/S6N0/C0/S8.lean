@@ -6,9 +6,9 @@ Authors: Chris Henson
 
 module
 
-public import Solution.Atoms7.S6N0.C0.Defs
+public import Solution.Atoms7.S6N0.C0.Actions
 
-/-! Generated certificate for the identity on six symmetric diversity atoms. -/
+/-! Generated identity-class certificate for the product-row count. -/
 
 set_option linter.style.longLine false
 set_option maxRecDepth 100000
@@ -64,8 +64,8 @@ theorem h3455 : P.leaf 36 3455 = 0 :=
   (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
     (sumLeaves_of_chunks (cs := [(1024, 0)]) (.cons c3455_0 (.nil)) (by decide) (by decide))
 
-theorem cover3475 : P.CoversSplit 26 10 3475 0x8000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000010000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [433, 481, 489, 530, 538, 629, 636, 881, 922, 930]) (by decide +kernel)
+theorem cover3475 : P.CoversSplit 26 10 3475 0x8000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000010000000000000000000000000000000000000000000000000000000000000000 :=
+  coversProjected check rows (by decide) (by decide) (xs := [433, 481, 489, 530, 538, 629, 636, 881, 922, 930]) (ps := [(13, [510], [874])]) (by decide +kernel)
 
 theorem c3475_0 : P.sumLeaves 26 3558400 1024 = 8393 := by
   apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 3475) (lo := 0) (len := 1024) (W := 8393) check rows elimOK (by decide) (by decide) cover3475 (by decide)

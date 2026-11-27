@@ -72,8 +72,13 @@ impl<'a> Evaluator<'a> {
     /// Number of assignments of the low `b` variables satisfying the formula, the remaining
     /// variables being given by the bits of `alpha`.
     pub fn leaf(&self, alpha: u64) -> u64 {
+        self.leaf_terms(alpha, &self.terms)
+    }
+
+    /// Evaluate a residual formula on the same packed coordinate columns.
+    pub fn leaf_terms(&self, alpha: u64, terms: &[(Vec<(usize, usize)>, Vec<(usize, usize)>)]) -> u64 {
         let mut bad = vec![0u64; self.words];
-        for (l, r) in &self.terms {
+        for (l, r) in terms {
             let lt = self.dot(l, alpha);
             let rt = self.dot(r, alpha);
             match (lt, rt) {

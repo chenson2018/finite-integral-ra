@@ -6,9 +6,9 @@ Authors: Chris Henson
 
 module
 
-public import Solution.Cert.Split
+public import Solution.Cert.Factors
 
-/-! Generated certificate for the identity on six symmetric diversity atoms. -/
+/-! Generated identity-class certificate for the product-row count. -/
 
 set_option linter.style.longLine false
 set_option maxRecDepth 100000
