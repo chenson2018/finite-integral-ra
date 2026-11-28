@@ -20,199 +20,208 @@ namespace RACert.S6N0.C0.S69
 
 open RACert RACert.Problem
 
-theorem cover97122 : P.CoversSplit 26 10 97122 0xf000f000f000f0000000000000000000f000f000f000f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [481, 489, 874, 972, 979, 1266, 1273, 1658]) (by decide +kernel)
+theorem cover98291 : P.CoversSplit 26 10 98291 0xf000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f00800000000000000000000fa000000fa0000000000000000000000fa000000fa080000000000000000000000000000000000000000f0c0f0c000000000f0c0f0c8000000000000000000000000000000000000000000000000000000000000fac8 :=
+  coversSplit check rows (by decide) (by decide) (xs := [481, 489, 972, 979]) (by decide +kernel)
 
-theorem c97122_0 : P.sumLeaves 26 99452928 1024 = 1728000 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97122) (lo := 0) (len := 1024) (W := 1728000) check rows elimOK (by decide) (by decide) cover97122 (by decide)
+noncomputable def f98291 (i : ℕ) := rowWeight keep1 twice1 i * P.leaf 26 (100649984 + i)
+
+theorem c98291_0 : rowSum f98291 0 1024 = 266379128 := by
+  apply weightedChunk_eq (b := 20) (m := 6) (d := 10) (H := 98291) (keep := keep1) (twice := twice1) check rows elimOK (by decide) (by decide) cover98291 (by decide)
   decide +kernel
 
-theorem h97122 : P.leaf 36 97122 = 1728000 :=
+theorem sum98291 : rowSum f98291 0 1024 = 266379128 :=
+  c98291_0
+
+theorem h98291 : P.leaf 36 98291 = 266379128 :=
+  leaf_weighted (k := 26) (d := 10) (H := 98291) (keep := keep1) (twice := twice1) rows (by decide) (by decide) (bal1) (invRow1 (H := 98291) (by decide) (by decide +kernel)) sum98291
+
+theorem cover372187 : P.CoversSplit 26 10 372187 0xaaaaaaaaaaaaaaaaaaaaababaaaaabab00000000000000000000000000220022000000000000000000000a0a00000a0a0000000000000000000000000000000200000000002200220000000000220023000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000 :=
+  coversSplit check rows (by decide) (by decide) (xs := [481, 629, 636, 1665]) (by decide +kernel)
+
+noncomputable def f372187 (i : ℕ) := rowWeight keep3 twice3 i * P.leaf 26 (381119488 + i)
+
+theorem c372187_0 : rowSum f372187 0 1024 = 257149345 := by
+  apply weightedChunk_eq (b := 20) (m := 6) (d := 10) (H := 372187) (keep := keep3) (twice := twice3) check rows elimOK (by decide) (by decide) cover372187 (by decide)
+  decide +kernel
+
+theorem sum372187 : rowSum f372187 0 1024 = 257149345 :=
+  c372187_0
+
+theorem h372187 : P.leaf 36 372187 = 257149345 :=
+  leaf_weighted (k := 26) (d := 10) (H := 372187) (keep := keep3) (twice := twice3) rows (by decide) (by decide) (bal3) (invRow3 (H := 372187) (by decide) (by decide +kernel)) sum372187
+
+theorem h98292 : P.leaf 36 98292 = 257149345 :=
+  orient84 (v := 372187) (by decide) (by decide +kernel) h372187
+
+theorem cover98293 : P.CoversSplit 26 10 98293 0xff00ff00ff00fa00ff00ff00ff00fa00ff00ff00ff03fa00fa00fa00fa00fa00ff00fa00ff00fa00fa00f000fa00f000ff00fa00ff03fa00fa00f000fa00f00000000000000000000000000000000000000000003300320000000000320032000000000000000000000000000000000000000000000000000000000000000000 :=
+  coversSplit check rows (by decide) (by decide) (xs := [489, 923, 972, 979, 1315, 1322, 1658, 1665]) (by decide +kernel)
+
+theorem c98293_0 : P.sumLeaves 26 100652032 735 = 168198806 := by
+  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 98293) (lo := 0) (len := 735) (W := 168198806) check rows elimOK (by decide) (by decide) cover98293 (by decide)
+  decide +kernel
+
+theorem c98293_1 : P.sumLeaves 26 100652767 220 = 410059559 := by
+  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 98293) (lo := 735) (len := 220) (W := 410059559) check rows elimOK (by decide) (by decide) cover98293 (by decide)
+  decide +kernel
+
+theorem c98293_2 : P.sumLeaves 26 100652987 69 = 300133008 := by
+  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 98293) (lo := 955) (len := 69) (W := 300133008) check rows elimOK (by decide) (by decide) cover98293 (by decide)
+  decide +kernel
+
+theorem h98293 : P.leaf 36 98293 = 878391373 :=
   (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(1024, 1728000)]) (.cons c97122_0 (.nil)) (by decide) (by decide))
+    (sumLeaves_of_chunks (cs := [(735, 168198806), (220, 410059559), (69, 300133008)]) (.cons c98293_0 (.cons c98293_1 (.cons c98293_2 (.nil)))) (by decide) (by decide))
 
-theorem cover97123 : P.CoversSplit 26 10 97123 0xf000f000f000f0000000000000000000f000f000f000f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [481, 489, 579, 972, 979, 1266, 1273, 1658]) (by decide +kernel)
+theorem cover98295 : P.CoversSplit 26 10 98295 0xff00ff00ff00fa00ff00ff00ff00fa00ff00ff00ff03fa00fa00fa00fa00fa00ff00fa00ff00fa00fa00f000fa00f000ff00fa00ff03fa00fa00f000fa00f00000000000000000000000000000000000000000003300320000000000320032000000000000000000000000000000000000000000330032000000000032003000 :=
+  coversSplit check rows (by decide) (by decide) (xs := [489, 972, 979, 1315, 1322, 1658, 1665]) (by decide +kernel)
 
-theorem c97123_0 : P.sumLeaves 26 99453952 1024 = 9401376 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97123) (lo := 0) (len := 1024) (W := 9401376) check rows elimOK (by decide) (by decide) cover97123 (by decide)
+noncomputable def f98295 (i : ℕ) := rowWeight keep1 twice1 i * P.leaf 26 (100654080 + i)
+
+theorem c98295_0 : rowSum f98295 0 813 = 496247032 := by
+  apply weightedChunk_eq (b := 20) (m := 6) (d := 10) (H := 98295) (keep := keep1) (twice := twice1) check rows elimOK (by decide) (by decide) cover98295 (by decide)
   decide +kernel
 
-theorem h97123 : P.leaf 36 97123 = 9401376 :=
+theorem c98295_1 : rowSum f98295 813 211 = 880547995 := by
+  apply weightedChunk_eq (b := 20) (m := 6) (d := 10) (H := 98295) (keep := keep1) (twice := twice1) check rows elimOK (by decide) (by decide) cover98295 (by decide)
+  decide +kernel
+
+theorem sum98295 : rowSum f98295 0 1024 = 1376795027 :=
+  rowSum_append (F := f98295) (lo := 0) (n := 813) (m := 211) (A := 496247032) (B := 880547995) c98295_0 (c98295_1)
+
+theorem h98295 : P.leaf 36 98295 = 1376795027 :=
+  leaf_weighted (k := 26) (d := 10) (H := 98295) (keep := keep1) (twice := twice1) rows (by decide) (by decide) (bal1) (invRow1 (H := 98295) (by decide) (by decide +kernel)) sum98295
+
+theorem cover375259 : P.CoversSplit 26 10 375259 0xaaaaaaaaaaaaaaaaaaaaababaaaaabab00000000000000000000000000220022000000000000000000000a0a00000a0a0000000000000000000000000000000200000000002200220000000000220023000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000 :=
+  coversSplit check rows (by decide) (by decide) (xs := [481, 629, 636, 1665]) (by decide +kernel)
+
+noncomputable def f375259 (i : ℕ) := rowWeight keep3 twice3 i * P.leaf 26 (384265216 + i)
+
+theorem c375259_0 : rowSum f375259 0 1024 = 292682473 := by
+  apply weightedChunk_eq (b := 20) (m := 6) (d := 10) (H := 375259) (keep := keep3) (twice := twice3) check rows elimOK (by decide) (by decide) cover375259 (by decide)
+  decide +kernel
+
+theorem sum375259 : rowSum f375259 0 1024 = 292682473 :=
+  c375259_0
+
+theorem h375259 : P.leaf 36 375259 = 292682473 :=
+  leaf_weighted (k := 26) (d := 10) (H := 375259) (keep := keep3) (twice := twice3) rows (by decide) (by decide) (bal3) (invRow3 (H := 375259) (by decide) (by decide +kernel)) sum375259
+
+theorem h98296 : P.leaf 36 98296 = 292682473 :=
+  orient86 (v := 375259) (by decide) (by decide +kernel) h375259
+
+theorem cover98297 : P.CoversSplit 26 10 98297 0xf0f0f0f0f0f0f0f0f0f0f0f5f0f0f0f0f0f0f0f0f0f0f0c0f0f0f0f0f0c0f0c00000000000000000000050500000505000000000000000000000505000005040f0f0f0f0f0f0f0f0f0f0f0f5f0f0f0f0f0f0f0f0f000f000f0f0f0f0f000f0000000000000000000000000000000000000000000000000000000000000000000 :=
+  coversSplit check rows (by decide) (by decide) (xs := [481, 923, 972, 979, 1315, 1322, 1658, 1665]) (by decide +kernel)
+
+theorem c98297_0 : P.sumLeaves 26 100656128 478 = 145318368 := by
+  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 98297) (lo := 0) (len := 478) (W := 145318368) check rows elimOK (by decide) (by decide) cover98297 (by decide)
+  decide +kernel
+
+theorem c98297_1 : P.sumLeaves 26 100656606 431 = 276486063 := by
+  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 98297) (lo := 478) (len := 431) (W := 276486063) check rows elimOK (by decide) (by decide) cover98297 (by decide)
+  decide +kernel
+
+theorem c98297_2 : P.sumLeaves 26 100657037 115 = 449897586 := by
+  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 98297) (lo := 909) (len := 115) (W := 449897586) check rows elimOK (by decide) (by decide) cover98297 (by decide)
+  decide +kernel
+
+theorem h98297 : P.leaf 36 98297 = 871702017 :=
   (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(1024, 9401376)]) (.cons c97123_0 (.nil)) (by decide) (by decide))
+    (sumLeaves_of_chunks (cs := [(478, 145318368), (431, 276486063), (115, 449897586)]) (.cons c98297_0 (.cons c98297_1 (.cons c98297_2 (.nil)))) (by decide) (by decide))
 
-theorem cover97126 : P.CoversSplit 26 10 97126 0xff00ff00ff00fa000000000000000000ff00ff00ff03fa000500050005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [489, 579, 874, 972, 979, 1266, 1273, 1315, 1322, 1658, 1665]) (by decide +kernel)
+theorem cover375295 : P.CoversSplit 26 10 375295 0xfffffffffffffffffffffefefffffefe00000000000000000000000000220022ffffffffffffffffaaaaaaaaaaaaaaaa0000000000000000000000000022002200000000003300330000000000330032000000000000000000000000000000000000000000330033000000000022002200000000000000000000000000000000 :=
+  coversSplit check rows (by decide) (by decide) (xs := [629, 636, 930, 1273, 1658, 1665]) (by decide +kernel)
 
-theorem c97126_0 : P.sumLeaves 26 99457024 1024 = 17000864 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97126) (lo := 0) (len := 1024) (W := 17000864) check rows elimOK (by decide) (by decide) cover97126 (by decide)
+noncomputable def f375295 (i : ℕ) := rowWeight keep3 twice3 i * P.leaf 26 (384302080 + i)
+
+theorem c375295_0 : rowSum f375295 0 908 = 404334105 := by
+  apply weightedChunk_eq (b := 20) (m := 6) (d := 10) (H := 375295) (keep := keep3) (twice := twice3) check rows elimOK (by decide) (by decide) cover375295 (by decide)
   decide +kernel
 
-theorem h97126 : P.leaf 36 97126 = 17000864 :=
+theorem c375295_1 : rowSum f375295 908 116 = 969943206 := by
+  apply weightedChunk_eq (b := 20) (m := 6) (d := 10) (H := 375295) (keep := keep3) (twice := twice3) check rows elimOK (by decide) (by decide) cover375295 (by decide)
+  decide +kernel
+
+theorem sum375295 : rowSum f375295 0 1024 = 1374277311 :=
+  rowSum_append (F := f375295) (lo := 0) (n := 908) (m := 116) (A := 404334105) (B := 969943206) c375295_0 (c375295_1)
+
+theorem h375295 : P.leaf 36 375295 = 1374277311 :=
+  leaf_weighted (k := 26) (d := 10) (H := 375295) (keep := keep3) (twice := twice3) rows (by decide) (by decide) (bal3) (invRow3 (H := 375295) (by decide) (by decide +kernel)) sum375295
+
+theorem h98299 : P.leaf 36 98299 = 1374277311 :=
+  orient86 (v := 375295) (by decide) (by decide +kernel) h375295
+
+theorem cover326643 : P.CoversSplit 26 10 326643 0xffffffffffffffffffffaaaaffffaaaaffffffffccccccccfac8aa88c8c88888fffffffffffffffffafaaaaafafaaaaaffffffffccccccccfac8aa88c8c88888ffffffffffffffffffffaaaaffffaaaaffccffccccccccccfac8aa88c8c88888fffffffffffffffffafaaaaafafaaaaaffccffccccccccccfac8aa88c8c88888 :=
+  coversSplit check rows (by decide) (by decide) (xs := [481, 489, 1265, 1273, 1658, 1665]) (by decide +kernel)
+
+noncomputable def f326643 (i : ℕ) := rowWeight keep0 twice0 i * P.leaf 26 (334482432 + i)
+
+theorem c326643_0 : rowSum f326643 0 278 = 444047645 := by
+  apply weightedChunk_eq (b := 20) (m := 6) (d := 10) (H := 326643) (keep := keep0) (twice := twice0) check rows elimOK (by decide) (by decide) cover326643 (by decide)
+  decide +kernel
+
+theorem c326643_1 : rowSum f326643 278 158 = 486256048 := by
+  apply weightedChunk_eq (b := 20) (m := 6) (d := 10) (H := 326643) (keep := keep0) (twice := twice0) check rows elimOK (by decide) (by decide) cover326643 (by decide)
+  decide +kernel
+
+theorem c326643_2 : rowSum f326643 436 407 = 715796367 := by
+  apply weightedChunk_eq (b := 20) (m := 6) (d := 10) (H := 326643) (keep := keep0) (twice := twice0) check rows elimOK (by decide) (by decide) cover326643 (by decide)
+  decide +kernel
+
+theorem c326643_3 : rowSum f326643 843 181 = 628180412 := by
+  apply weightedChunk_eq (b := 20) (m := 6) (d := 10) (H := 326643) (keep := keep0) (twice := twice0) check rows elimOK (by decide) (by decide) cover326643 (by decide)
+  decide +kernel
+
+theorem sum326643 : rowSum f326643 0 1024 = 2274280472 :=
+  rowSum_append (F := f326643) (lo := 0) (n := 278) (m := 746) (A := 444047645) (B := 1830232827) c326643_0 (rowSum_append (F := f326643) (lo := 278) (n := 158) (m := 588) (A := 486256048) (B := 1343976779) c326643_1 (rowSum_append (F := f326643) (lo := 436) (n := 407) (m := 181) (A := 715796367) (B := 628180412) c326643_2 (c326643_3)))
+
+theorem h326643 : P.leaf 36 326643 = 2274280472 :=
+  leaf_weighted (k := 26) (d := 10) (H := 326643) (keep := keep0) (twice := twice0) rows (by decide) (by decide) (bal0) (invRow0 (H := 326643) (by decide) (by decide +kernel)) sum326643
+
+theorem h98300 : P.leaf 36 98300 = 2274280472 :=
+  orient80 (v := 326643) (by decide) (by decide +kernel) h326643
+
+theorem cover98301 : P.CoversSplit 26 10 98301 0xfffffffffffffafafffffffafffffafafffffffffffcfac8fafafafafac8fac8fffffafafffffafafafafafafafafafafffffafafffcfac8fafafafafac8fac8fffffffffffffafafffffffafffffafaffffffffffccfac8fafafafafac8fac80000000000000000000000000000000000000000000000000000000000000000 :=
+  coversSplit check rows (by decide) (by decide) (xs := [923, 972, 979, 1315, 1322, 1658, 1665]) (by decide +kernel)
+
+theorem c98301_0 : P.sumLeaves 26 100660224 387 = 220499446 := by
+  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 98301) (lo := 0) (len := 387) (W := 220499446) check rows elimOK (by decide) (by decide) cover98301 (by decide)
+  decide +kernel
+
+theorem c98301_1 : P.sumLeaves 26 100660611 104 = 481966487 := by
+  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 98301) (lo := 387) (len := 104) (W := 481966487) check rows elimOK (by decide) (by decide) cover98301 (by decide)
+  decide +kernel
+
+theorem c98301_2 : P.sumLeaves 26 100660715 131 = 392221131 := by
+  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 98301) (lo := 491) (len := 131) (W := 392221131) check rows elimOK (by decide) (by decide) cover98301 (by decide)
+  decide +kernel
+
+theorem c98301_3 : P.sumLeaves 26 100660846 118 = 502600926 := by
+  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 98301) (lo := 622) (len := 118) (W := 502600926) check rows elimOK (by decide) (by decide) cover98301 (by decide)
+  decide +kernel
+
+theorem c98301_4 : P.sumLeaves 26 100660964 129 = 578575690 := by
+  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 98301) (lo := 740) (len := 129) (W := 578575690) check rows elimOK (by decide) (by decide) cover98301 (by decide)
+  decide +kernel
+
+theorem c98301_5 : P.sumLeaves 26 100661093 106 = 984023096 := by
+  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 98301) (lo := 869) (len := 106) (W := 984023096) check rows elimOK (by decide) (by decide) cover98301 (by decide)
+  decide +kernel
+
+theorem c98301_6 : P.sumLeaves 26 100661199 49 = 726298394 := by
+  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 98301) (lo := 975) (len := 49) (W := 726298394) check rows elimOK (by decide) (by decide) cover98301 (by decide)
+  decide +kernel
+
+theorem h98301 : P.leaf 36 98301 = 3886185170 :=
   (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(1024, 17000864)]) (.cons c97126_0 (.nil)) (by decide) (by decide))
+    (sumLeaves_of_chunks (cs := [(387, 220499446), (104, 481966487), (131, 392221131), (118, 502600926), (129, 578575690), (106, 984023096), (49, 726298394)]) (.cons c98301_0 (.cons c98301_1 (.cons c98301_2 (.cons c98301_3 (.cons c98301_4 (.cons c98301_5 (.cons c98301_6 (.nil)))))))) (by decide) (by decide))
 
-theorem cover97127 : P.CoversSplit 26 10 97127 0xff00ff00ff00fa000000000000000000ff00ff00ff03fa000500050005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [489, 579, 972, 979, 1266, 1273, 1315, 1322, 1658, 1665]) (by decide +kernel)
+def seg : List (ℕ × ℕ) := [(98291, 360), (98292, 360), (98293, 720), (98295, 360), (98296, 360), (98297, 720), (98299, 360), (98300, 360), (98301, 720)]
 
-theorem c97127_0 : P.sumLeaves 26 99458048 1024 = 49088144 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97127) (lo := 0) (len := 1024) (W := 49088144) check rows elimOK (by decide) (by decide) cover97127 (by decide)
-  decide +kernel
-
-theorem h97127 : P.leaf 36 97127 = 49088144 :=
-  (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(1024, 49088144)]) (.cons c97127_0 (.nil)) (by decide) (by decide))
-
-theorem cover97130 : P.CoversSplit 26 10 97130 0xf0f0f0f0f0f0f0f00000000000000000f0f0f0f0f0f0f0c000000005000000000000000000000000000000000000000000000000000000000000000000000000f0f0f0f0f0f0f0f00000000000000000f0f0f0f00000000000000005000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [481, 874, 972, 979, 1266, 1273, 1315, 1322, 1658]) (by decide +kernel)
-
-theorem c97130_0 : P.sumLeaves 26 99461120 990 = 7574464 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97130) (lo := 0) (len := 990) (W := 7574464) check rows elimOK (by decide) (by decide) cover97130 (by decide)
-  decide +kernel
-
-theorem c97130_1 : P.sumLeaves 26 99462110 34 = 6790400 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97130) (lo := 990) (len := 34) (W := 6790400) check rows elimOK (by decide) (by decide) cover97130 (by decide)
-  decide +kernel
-
-theorem h97130 : P.leaf 36 97130 = 14364864 :=
-  (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(990, 7574464), (34, 6790400)]) (.cons c97130_0 (.cons c97130_1 (.nil))) (by decide) (by decide))
-
-theorem cover97131 : P.CoversSplit 26 10 97131 0xf0f0f0f0f0f0f0f00000000000000000f0f0f0f0f0f0f0c000000005000000000000000000000000000000000000000000000000000000000000000000000000f0f0f0f0f0f0f0f00000000000000000f0f0f0f00000000000000005000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [481, 579, 972, 979, 1266, 1273, 1315, 1322, 1658]) (by decide +kernel)
-
-theorem c97131_0 : P.sumLeaves 26 99462144 990 = 23496796 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97131) (lo := 0) (len := 990) (W := 23496796) check rows elimOK (by decide) (by decide) cover97131 (by decide)
-  decide +kernel
-
-theorem c97131_1 : P.sumLeaves 26 99463134 34 = 13018944 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97131) (lo := 990) (len := 34) (W := 13018944) check rows elimOK (by decide) (by decide) cover97131 (by decide)
-  decide +kernel
-
-theorem h97131 : P.leaf 36 97131 = 36515740 :=
-  (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(990, 23496796), (34, 13018944)]) (.cons c97131_0 (.cons c97131_1 (.nil))) (by decide) (by decide))
-
-theorem cover97133 : P.CoversSplit 26 10 97133 0xfffffffffffffafa0000000000000000fffffffffffcfac805050500050000000000000000000000000000000000000000000000000000000000000000000000fffffffffffffafa0000000000000000ffffffff0000000005050500000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [579, 923, 972, 979, 1266, 1273, 1315, 1322, 1658, 1665]) (by decide +kernel)
-
-theorem c97133_0 : P.sumLeaves 26 99464192 510 = 4832832 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97133) (lo := 0) (len := 510) (W := 4832832) check rows elimOK (by decide) (by decide) cover97133 (by decide)
-  decide +kernel
-
-theorem c97133_1 : P.sumLeaves 26 99464702 485 = 11277704 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97133) (lo := 510) (len := 485) (W := 11277704) check rows elimOK (by decide) (by decide) cover97133 (by decide)
-  decide +kernel
-
-theorem c97133_2 : P.sumLeaves 26 99465187 29 = 8789344 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97133) (lo := 995) (len := 29) (W := 8789344) check rows elimOK (by decide) (by decide) cover97133 (by decide)
-  decide +kernel
-
-theorem h97133 : P.leaf 36 97133 = 24899880 :=
-  (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(510, 4832832), (485, 11277704), (29, 8789344)]) (.cons c97133_0 (.cons c97133_1 (.cons c97133_2 (.nil)))) (by decide) (by decide))
-
-theorem cover97134 : P.CoversSplit 26 10 97134 0xfffffffffffffafa0000000000000000fffffffffffcfac805050500050000000000000000000000000000000000000000000000000000000000000000000000fffffffffffffafa0000000000000000ffffffff0000000005050500000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [579, 874, 972, 979, 1266, 1273, 1315, 1322, 1658, 1665]) (by decide +kernel)
-
-theorem c97134_0 : P.sumLeaves 26 99465216 510 = 6238064 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97134) (lo := 0) (len := 510) (W := 6238064) check rows elimOK (by decide) (by decide) cover97134 (by decide)
-  decide +kernel
-
-theorem c97134_1 : P.sumLeaves 26 99465726 485 = 21181032 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97134) (lo := 510) (len := 485) (W := 21181032) check rows elimOK (by decide) (by decide) cover97134 (by decide)
-  decide +kernel
-
-theorem c97134_2 : P.sumLeaves 26 99466211 29 = 14086880 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97134) (lo := 995) (len := 29) (W := 14086880) check rows elimOK (by decide) (by decide) cover97134 (by decide)
-  decide +kernel
-
-theorem h97134 : P.leaf 36 97134 = 41505976 :=
-  (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(510, 6238064), (485, 21181032), (29, 14086880)]) (.cons c97134_0 (.cons c97134_1 (.cons c97134_2 (.nil)))) (by decide) (by decide))
-
-theorem cover97135 : P.CoversSplit 26 10 97135 0xfffffffffffffafa0000000000000000fffffffffffcfac805050500050000000000000000000000000000000000000000000000000000000000000000000000fffffffffffffafa0000000000000000ffffffff0000000005050500000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [579, 972, 979, 1266, 1273, 1315, 1322, 1658, 1665]) (by decide +kernel)
-
-theorem c97135_0 : P.sumLeaves 26 99466240 510 = 16551072 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97135) (lo := 0) (len := 510) (W := 16551072) check rows elimOK (by decide) (by decide) cover97135 (by decide)
-  decide +kernel
-
-theorem c97135_1 : P.sumLeaves 26 99466750 485 = 60384104 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97135) (lo := 510) (len := 485) (W := 60384104) check rows elimOK (by decide) (by decide) cover97135 (by decide)
-  decide +kernel
-
-theorem c97135_2 : P.sumLeaves 26 99467235 29 = 24148640 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97135) (lo := 995) (len := 29) (W := 24148640) check rows elimOK (by decide) (by decide) cover97135 (by decide)
-  decide +kernel
-
-theorem h97135 : P.leaf 36 97135 = 101083816 :=
-  (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(510, 16551072), (485, 60384104), (29, 24148640)]) (.cons c97135_0 (.cons c97135_1 (.cons c97135_2 (.nil)))) (by decide) (by decide))
-
-theorem cover97139 : P.CoversSplit 26 10 97139 0xf000f000f000f0000000000000000000f000f000f000f000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [481, 489, 972, 979, 1273, 1658, 1665]) (by decide +kernel)
-
-theorem c97139_0 : P.sumLeaves 26 99470336 1024 = 67601920 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97139) (lo := 0) (len := 1024) (W := 67601920) check rows elimOK (by decide) (by decide) cover97139 (by decide)
-  decide +kernel
-
-theorem h97139 : P.leaf 36 97139 = 67601920 :=
-  (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(1024, 67601920)]) (.cons c97139_0 (.nil)) (by decide) (by decide))
-
-theorem cover97140 : P.CoversSplit 26 10 97140 0xff00ff00ff00fa000000000000000000ff00ff00ff03fa000500050005000000050000000500000005000000050000000500000005010000050000000500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [489, 579, 874, 972, 979, 1273, 1315, 1322, 1658, 1665]) (by decide +kernel)
-
-theorem c97140_0 : P.sumLeaves 26 99471360 1024 = 15588698 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97140) (lo := 0) (len := 1024) (W := 15588698) check rows elimOK (by decide) (by decide) cover97140 (by decide)
-  decide +kernel
-
-theorem h97140 : P.leaf 36 97140 = 15588698 :=
-  (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(1024, 15588698)]) (.cons c97140_0 (.nil)) (by decide) (by decide))
-
-theorem cover97141 : P.CoversSplit 26 10 97141 0xff00ff00ff00fa000000000000000000ff00ff00ff03fa000500050005000000050000000500000005000000050000000500000005010000050000000500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [489, 579, 923, 972, 979, 1273, 1315, 1322, 1658, 1665]) (by decide +kernel)
-
-theorem c97141_0 : P.sumLeaves 26 99472384 1024 = 165011375 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97141) (lo := 0) (len := 1024) (W := 165011375) check rows elimOK (by decide) (by decide) cover97141 (by decide)
-  decide +kernel
-
-theorem h97141 : P.leaf 36 97141 = 165011375 :=
-  (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(1024, 165011375)]) (.cons c97141_0 (.nil)) (by decide) (by decide))
-
-theorem cover97142 : P.CoversSplit 26 10 97142 0xff00ff00ff00fa000000000000000000ff00ff00ff03fa000500050005000000050000000500000005000000050000000500000005010000050000000500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [489, 579, 874, 972, 979, 1273, 1315, 1322, 1658, 1665]) (by decide +kernel)
-
-theorem c97142_0 : P.sumLeaves 26 99473408 1024 = 172035492 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97142) (lo := 0) (len := 1024) (W := 172035492) check rows elimOK (by decide) (by decide) cover97142 (by decide)
-  decide +kernel
-
-theorem h97142 : P.leaf 36 97142 = 172035492 :=
-  (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(1024, 172035492)]) (.cons c97142_0 (.nil)) (by decide) (by decide))
-
-theorem cover97143 : P.CoversSplit 26 10 97143 0xff00ff00ff00fa000000000000000000ff00ff00ff03fa000500050005000000050000000500000005000000050000000500000005010000050000000500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 :=
-  coversSplit check rows (by decide) (by decide) (xs := [489, 579, 972, 979, 1273, 1315, 1322, 1658, 1665]) (by decide +kernel)
-
-theorem c97143_0 : P.sumLeaves 26 99474432 1024 = 377872115 := by
-  apply sumLeaves_splitChunk (b := 20) (m := 6) (d := 10) (H := 97143) (lo := 0) (len := 1024) (W := 377872115) check rows elimOK (by decide) (by decide) cover97143 (by decide)
-  decide +kernel
-
-theorem h97143 : P.leaf 36 97143 = 377872115 :=
-  (leaf_eq_inner (k := 26) (d := 10) rows (by decide) (by decide)).trans
-    (sumLeaves_of_chunks (cs := [(1024, 377872115)]) (.cons c97143_0 (.nil)) (by decide) (by decide))
-
-def seg : List (ℕ × ℕ) := [(97122, 240), (97123, 720), (97126, 720), (97127, 720), (97130, 720), (97131, 720), (97133, 720), (97134, 720), (97135, 720), (97139, 720), (97140, 360), (97141, 720), (97142, 720), (97143, 720)]
-
-theorem segOK : checkSeg 20 perms 97122 97145 seg = true :=
+theorem segOK : checkSeg 20 perms 98291 98303 seg = true :=
   checkSeg_of_cols colsOK (by decide +kernel)
 
-theorem total : OrbitSeg 20 perms (P.leaf 36) 97122 97145 9240 781021375920 :=
-  OrbitSeg.of_checkSum segOK (by decide +kernel) (W' := 781021375920)
-    (SegSum.cons (w := 240) h97122 (SegSum.cons (w := 720) h97123 (SegSum.cons (w := 720) h97126 (SegSum.cons (w := 720) h97127 (SegSum.cons (w := 720) h97130 (SegSum.cons (w := 720) h97131 (SegSum.cons (w := 720) h97133 (SegSum.cons (w := 720) h97134 (SegSum.cons (w := 720) h97135 (SegSum.cons (w := 720) h97139 (SegSum.cons (w := 360) h97140 (SegSum.cons (w := 720) h97141 (SegSum.cons (w := 720) h97142 (SegSum.cons (w := 720) h97143 (show SegSum (P.leaf 36) [] 0 from rfl))))))))))))))) (by decide)
+theorem total : OrbitSeg 20 perms (P.leaf 36) 98291 98303 4320 6161083515360 :=
+  OrbitSeg.of_checkSum segOK (by decide +kernel) (W' := 6161083515360)
+    (SegSum.cons (w := 360) h98291 (SegSum.cons (w := 360) h98292 (SegSum.cons (w := 720) h98293 (SegSum.cons (w := 360) h98295 (SegSum.cons (w := 360) h98296 (SegSum.cons (w := 720) h98297 (SegSum.cons (w := 360) h98299 (SegSum.cons (w := 360) h98300 (SegSum.cons (w := 720) h98301 (show SegSum (P.leaf 36) [] 0 from rfl)))))))))) (by decide)
 
 end RACert.S6N0.C0.S69

@@ -219,6 +219,70 @@ noncomputable def weightedChunk (b m : ℕ) (qt : QTree) (ow : List QTree)
 
 def rowSum (F : ℕ → ℕ) (lo len : ℕ) := ∑ i ∈ Finset.range len, F (lo + i)
 
+/-- A contracted block can be used verbatim when all its row weights are one. -/
+theorem rowSum_unit_block {P : Problem} {keep twice k base lo len : ℕ}
+    (h : allRange len (fun j => Nat.beq (rowWeight keep twice (lo + j)) 1) = true) :
+    rowSum (fun i => rowWeight keep twice i * P.leaf k (base + i)) lo len =
+      P.sumLeaves k (base + lo) len := by
+  rw [rowSum, sumLeaves_eq_sum]
+  apply Finset.sum_congr rfl
+  intro j hj
+  have hw := Nat.eq_of_beq_eq_true (allRange_iff.mp h j (Finset.mem_range.mp hj))
+  rw [hw, one_mul, Nat.add_assoc]
+
+/-- Reconstruct the domain mask from a sparse list of surviving row indices. -/
+def rowBits : List ℕ → ℕ
+  | [] => 0
+  | i :: is => Nat.lor (2 ^ i) (rowBits is)
+
+private theorem rowBits_bit (xs : List ℕ) (i : ℕ) :
+    (rowBits xs).testBit i = decide (i ∈ xs) := by
+  induction xs with
+  | nil => simp [rowBits]
+  | cons j js ih =>
+    simp [rowBits, Nat.testBit_two_pow, ih, eq_comm]
+
+/-- Count only the listed rows, with the same loop elimination as a dense chunk. -/
+noncomputable def sparseChunk (b m : ℕ) (qt : QTree) (ow : List QTree) (base : ℕ)
+    (weight : ℕ → ℕ) (xs : List ℕ) : ℕ :=
+  xs.foldr (fun i acc =>
+    let w := weight i
+    bif Nat.beq w 0 then acc else Nat.add (Nat.mul w (leafE b m qt ow (Nat.add base i))) acc) 0
+
+theorem rowSum_sparse {P : Problem} (hc : P.check = true) (hr : P.checkRows = true)
+    {b m d H mask W : ℕ} {qt : QTree} {ow : List QTree} {weight : ℕ → ℕ} {xs : List ℕ}
+    (hel : P.checkElim b m qt ow = true) (hk : b + m + d ≤ P.V)
+    (hH : H < 2 ^ (P.V - (b + m + d))) (cover : P.CoversSplit (b + m) d H mask)
+    (hxs : xs.Nodup) (hlt : xs.all (· < 2 ^ d) = true) (hm : rowBits xs = mask)
+    (h : sparseChunk b m qt ow (2 ^ d * H) weight xs = W) :
+    rowSum (fun i => weight i * P.leaf (b + m) (2 ^ d * H + i)) 0 (2 ^ d) = W := by
+  rw [← h, rowSum]
+  simp only [Nat.zero_add]
+  have sub : xs.toFinset ⊆ Finset.range (2 ^ d) := by
+    simpa [Finset.subset_iff, List.all_eq_true] using hlt
+  rw [← Finset.sum_subset sub (by
+    intro i hi hmiss
+    have hz : mask.testBit i = false := by simpa [← hm, rowBits_bit] using hmiss
+    rw [Nat.add_comm (2 ^ d * H), cover i (Finset.mem_range.mp hi) hz, Nat.mul_zero])]
+  clear cover hm h hlt
+  induction xs with
+  | nil => simp [sparseChunk]
+  | cons i xs ih =>
+    obtain ⟨hnot, htail⟩ := List.nodup_cons.mp hxs
+    have hi : i < 2 ^ d := Finset.mem_range.mp (sub (by simp))
+    have hl := leafE_eq_leaf hc hr hel (inner_lt hk hH hi)
+    rw [Nat.add_comm i] at hl
+    simp only [List.toFinset_cons, Finset.sum_insert (by simpa using hnot : i ∉ xs.toFinset)]
+    rw [ih htail (fun _ hj => sub (by rw [List.toFinset_cons]; exact Finset.mem_insert_of_mem hj))]
+    by_cases hw : weight i = 0 <;> simp [sparseChunk, hw, hl, Nat.beq_eq]
+
+theorem leaf_of_rowSum {P : Problem} (hr : P.checkRows = true) {k d H W : ℕ}
+    (hk : k + d ≤ P.V) (hH : H < 2 ^ (P.V - (k + d)))
+    (h : rowSum (fun i => 1 * P.leaf k (2 ^ d * H + i)) 0 (2 ^ d) = W) :
+    P.leaf (k + d) H = W := by
+  rw [leaf_eq_inner hr hk hH, sumLeaves_eq_sum]
+  simpa only [rowSum, Nat.one_mul, Nat.zero_add] using h
+
 theorem weightedChunk_eq {P : Problem} (hc : P.check = true) (hr : P.checkRows = true)
     {b m d H mask keep twice lo len W : ℕ} {qt : QTree} {ow : List QTree}
     (hel : P.checkElim b m qt ow = true) (hk : b + m + d ≤ P.V)

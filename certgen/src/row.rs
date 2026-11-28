@@ -187,6 +187,7 @@ pub struct Action {
     pub high: Vec<usize>,
     pub keep: Mask,
     pub twice: Mask,
+    image: Vec<usize>,
 }
 
 fn permute(mut x: u64, p: &[usize]) -> u64 {
@@ -196,6 +197,23 @@ fn permute(mut x: u64, p: &[usize]) -> u64 {
         x &= x - 1;
     }
     image
+}
+
+// Keep the lower row of a pair with weight two, and a fixed row with
+// weight one. If either end belongs to a contracted 64-row block,
+// both ends have unit weight so the block can be summed independently.
+fn row_weights(image: &[usize], blocks: u16) -> (Mask, Mask) {
+    let (mut keep, mut twice) = ([0; WORDS], [0; WORDS]);
+    for (i, &j) in image.iter().enumerate() {
+        let contracted = blocks & ((1 << (i / 64)) | (1 << (j / 64))) != 0;
+        if contracted || i <= j {
+            keep[i / 64] |= 1 << (i % 64);
+        }
+        if !contracted && i < j {
+            twice[i / 64] |= 1 << (i % 64);
+        }
+    }
+    (keep, twice)
 }
 
 impl Action {
@@ -219,17 +237,8 @@ impl Action {
             if (0..BITS).all(|j| high[j] == j) || (0..BITS).any(|j| high[high[j]] != j) {
                 continue;
             }
-            let mut keep = [0; WORDS];
-            let mut twice = [0; WORDS];
-            for i in 0..1 << BITS {
-                let image = permute(i as u64, &high) as usize;
-                if i <= image {
-                    keep[i / 64] |= 1 << (i % 64);
-                }
-                if i < image {
-                    twice[i / 64] |= 1 << (i % 64);
-                }
-            }
+            let image: Vec<_> = (0..1 << BITS).map(|i| permute(i, &high) as usize).collect();
+            let (keep, twice) = row_weights(&image, 0);
             let sym = crate::symm::Sym {
                 h: h.clone(),
                 hi: crate::sys::inverse(h),
@@ -238,6 +247,7 @@ impl Action {
             };
             out.push(Self {
                 sym,
+                image,
                 high,
                 keep,
                 twice,
@@ -246,22 +256,28 @@ impl Action {
         out
     }
 
-    pub fn best(actions: &[Self], h: u64, live: &Mask) -> Option<usize> {
-        let mut best = None;
-        let mut saved = 0;
+    pub fn weights(&self, blocks: u16) -> (Mask, Mask) {
+        if blocks == 0 {
+            (self.keep, self.twice)
+        } else {
+            row_weights(&self.image, blocks)
+        }
+    }
+
+    pub fn best(actions: &[Self], h: u64, live: &Mask, blocks: u16) -> (Option<usize>, usize) {
+        let mut best = (None, 0);
         for (i, a) in actions.iter().enumerate() {
-            let base = h << BITS;
-            if permute(base, &a.high) != base {
+            if permute(h << BITS, &a.high) != h << BITS {
                 continue;
             }
-            let gain: u32 = live
+            let (keep, _) = a.weights(blocks);
+            let gain = live
                 .iter()
-                .zip(a.keep)
-                .map(|(&w, k)| (w & !k).count_ones())
+                .zip(keep)
+                .map(|(&w, k)| (w & !k).count_ones() as usize)
                 .sum();
-            if gain > saved {
-                best = Some(i);
-                saved = gain;
+            if gain > best.1 {
+                best = (Some(i), gain);
             }
         }
         best
@@ -275,5 +291,27 @@ pub fn mask_literal(mask: &Mask) -> String {
         "0".into()
     } else {
         format!("0x{digits}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn contraction_preserves_pairs_outside_its_block() {
+        // Swap bits 0 and 6. Rows 1 and 64 straddle the contracted block;
+        // rows 129 and 192 form an unaffected pair farther up the domain.
+        let mut high: Vec<_> = (0..BITS).collect();
+        high.swap(0, 6);
+        let image: Vec<_> = (0..1 << BITS).map(|i| permute(i, &high) as usize).collect();
+        let (keep, twice) = row_weights(&image, 1);
+        let weight =
+            |i: usize| ((keep[i / 64] >> (i % 64)) & 1) + ((twice[i / 64] >> (i % 64)) & 1);
+        assert_eq!((weight(1), weight(64)), (1, 1));
+        assert_eq!((weight(129), weight(192)), (2, 0));
+        for (i, &j) in image.iter().enumerate() {
+            assert_eq!(weight(i) + weight(j), 2);
+        }
     }
 }
